@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# ignoring PPI
+*.csv
+*.html
+.DS_Store

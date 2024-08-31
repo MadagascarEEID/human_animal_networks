@@ -1,0 +1,92 @@
+library(tidyverse)
+demographic_health_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/Survey_Demographic_Health.csv")
+animal_interaction_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/Survey_Animal_Interaction.csv")
+length(unique(animal_interaction_data$social_netid))
+# cleaning data, selecting only columns that I want, converting binaries to 0 and 1
+demographic_health_data_cleaned <- demographic_health_data |> 
+  mutate(across(starts_with(c("attend_school", "own_", "banking", "grew_crops", "smoke","fever", "diarrhea",
+                              "coughed_blood", "surgery", "difficulty_breathing", "treat", "crops", "cert_member")),
+                ~ifelse(. == "Yes", 1L, 0L)))
+
+animal_interaction_data_cleaned <- animal_interaction_data |>  
+  mutate(across(-starts_with("social_netid"), ~ifelse(. == "Yes", 1L, 0L)))
+
+dim(animal_interaction_data_cleaned)
+
+merged_df <- inner_join(demographic_health_data_cleaned, animal_interaction_data_cleaned, by = "social_netid")
+
+merged_df <- suppressWarnings(merged_df |> 
+                                mutate(material_wall_index = 0) %>%
+                                mutate(material_wall_index = if_else(material_wall == "bamboo", 0, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "rafia", 0, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "ravenala", 0, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "mud", 0, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "compacted_earth", 0, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "wood_planks", 1, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "brick_unfired", 2, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "brick_fired", 2, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "metal_sheets", 3, material_wall_index)) %>%
+                                mutate(material_wall_index = if_else(material_wall == "cement", 4, material_wall_index)) %>%
+                                mutate(material_wall_index = scale(material_wall_index)) |> 
+                              
+                              # roof construction
+                                mutate(material_roof_index = 0) %>%
+                                mutate(material_roof_index = if_else(material_roof == "bamboo", 0, material_roof_index)) %>%
+                                mutate(material_roof_index = if_else(material_roof == "thatch", 0, material_roof_index)) %>%
+                                mutate(material_roof_index = if_else(material_roof == "metal_sheets", 1, material_roof_index)) %>%
+                                mutate(material_roof_index = if_else(material_roof == "cement", 2, material_roof_index)) %>%
+                                mutate(material_roof_index = scale(material_roof_index)) |> 
+                              
+                              # floor construction
+                                mutate(material_floor_index = 0) %>%
+                                mutate(material_floor_index = if_else(material_floor == "dirt", 0, material_floor_index)) %>%
+                                mutate(material_floor_index = if_else(material_floor == "bamboo", 0, material_floor_index)) %>%
+                                mutate(material_floor_index = if_else(material_floor == "rafia", 0, material_floor_index)) %>%
+                                mutate(material_floor_index = if_else(material_floor == "ravinala", 0, material_floor_index)) %>%
+                                mutate(material_floor_index = if_else(material_floor == "wood_planks", 1, material_floor_index)) %>%
+                                mutate(material_floor_index = if_else(material_floor == "cement", 2, material_floor_index)) %>%
+                                mutate(material_floor_index = scale(material_floor_index)) |> 
+                                
+                             # house index
+                               mutate(house_sol = material_wall_index + material_roof_index + material_floor_index) |> 
+                               
+                            # commerical goods
+                              mutate(commercial_goods = own_cellphone + own_tv + own_bicycle + own_refrigerator +
+                                       own_motorcycle + own_computer + own_generator) |> 
+                              
+                             # other things
+                                mutate(total_symptoms_reported = sum(c_across(contains("symptoms")), na.rm=TRUE)) |> 
+                                mutate(total_animal_interactions = sum(c_across(pet_dogs:dead_goats_sheep)), na.rm=TRUE) |> 
+                                mutate(employment_category = if_else(grepl("farm_crops", main_activity) | grepl("farm_mixed", main_activity), "Farmer", 
+                                                                     ifelse(grepl("student", main_activity) | grepl("teacher", main_activity), "Education",
+                                                                            ifelse(grepl("unemployed", main_activity) | grepl("retired_teacher", main_activity), "Unemployed",
+                                                                                  "Other")))) |> 
+                                mutate(num_high_risk_exposures = sum(across(contains(c("shared_water","scratched_bitten","feces", "dead",
+                                                                                       "raw_undercooked", "eaten_sick"))), na.rm = TRUE)) |> 
+                                mutate(high_risk_exposures_binary = ifelse(num_high_risk_exposures == 0L, 0L, 1L)) |> 
+                                mutate(village_number = ifelse(village == "Mandena", "Village 1", 
+                                                               ifelse(village == "Sarahandrano", "Village 2",
+                                                                      ifelse(grepl("Andatsakala", village) | grepl("Ampandrana", village), "Village 3", NA)))) |> 
+                                mutate(farmer_binary = ifelse(employment_category == "Farmer", 1L, 0L)) |> 
+                                mutate(school_level_numbered = ifelse(school_level == "None", 0L, 
+                                                                      ifelse(school_level == "Primary", 1L,
+                                                                             ifelse(school_level == "Secondary", 2L,
+                                                                                    ifelse(school_level == "Higher", 3L,
+                                                                                           NA))))) |> 
+                                mutate(SARI = ifelse(symptoms_fever == 1 & symptoms_cough == 1 & symptoms_short_of_breath == 1, 1L, 0L)) |> 
+                                mutate(ILI = ifelse(symptoms_fever == 1 & symptoms_cough == 1 | symptoms_muscle_aches == 1 | symptoms_sore_throat == 1, 1L, 0L)))
+                       
+merged_df$survey_date <- as.Date(merged_df$survey_date)
+
+
+n_respondents<-length(unique(merged_df$social_netid))
+n_respondents
+
+# merged_df |>
+#  count(num_high_risk_exposures) |>
+#  arrange(desc(n))
+# # 
+# unique_count <- merged_df |> 
+#   summarise(Unique_Count = n_distinct(social_netid, na.rm = TRUE))
+# 
+
