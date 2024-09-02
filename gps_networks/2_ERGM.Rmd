@@ -1,0 +1,71 @@
+---
+title: "2_ERGM"
+output: html_document
+date: "2024-09-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Load packages
+library(tidyverse); library(scales);library(bipartite);library(ggpubr);library(igraph);library(ergm);library(network)
+
+#Load data
+wd_path <- '~/Documents/GitHub/human_animal_networks/gps_networks/'
+getwd()
+setwd(wd_path)
+data_path <- 'outputs/'
+
+gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand.csv")) %>% select(-X)
+gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda.csv")) %>% select(-X)
+gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara.csv")) %>% select(-X)
+
+metadata <- read.csv("~/Documents/Manuscripts/SAVA_Network/Data/Survey_Demographic_Health.csv")
+animal_dat <- read.csv("~/Documents/Projects/SAVA_multilayer/cleaned_tables/Survey_Animal_Health.csv") %>% rename(id1="animal_id")
+
+```
+
+```{r Construct networks}
+
+#Mandena
+gps_edge_mand2 <- as.data.frame(gps_edge_mand %>% pivot_wider(names_from = id1, values_from = weight))
+rownames(gps_edge_mand2) <- gps_edge_mand2$id2
+gps_edge_mand2 <- gps_edge_mand2 %>% select(-id2)
+gps_edge_mand3 <- as.matrix(gps_edge_mand2)
+net_mand <-network::network(gps_edge_mand3,bipartite=T,matrix.type="bipartite")
+plot(net_mand)
+
+#Sarahandrano
+gps_edge_sara2 <- as.data.frame(gps_edge_sara %>% pivot_wider(names_from = id1, values_from = weight))
+rownames(gps_edge_sara2) <- gps_edge_sara2$id2
+gps_edge_sara2 <- gps_edge_sara2 %>% select(-id2)
+gps_edge_sara3 <- as.matrix(gps_edge_sara2)
+net_sara <-network::network(gps_edge_sara3,bipartite=T,matrix.type="bipartite")
+plot(net_sara)
+
+#Andatsakala
+gps_edge_anda2 <- as.data.frame(gps_edge_anda %>% pivot_wider(names_from = id1, values_from = weight))
+rownames(gps_edge_anda2) <- gps_edge_anda2$id2
+gps_edge_anda2 <- gps_edge_anda2 %>% select(-id2)
+gps_edge_anda3 <- as.matrix(gps_edge_anda2)
+net_anda <-network::network(gps_edge_anda3,bipartite=T,matrix.type="bipartite")
+plot(net_anda)
+
+#Remove isolates
+
+```
+
+```{r Assign vertex attributes}
+
+
+
+```
+
+
+
+Questions to discuss: 
+- Which predictor variables
+- Weighted or threshold ergm for gps data? 
+

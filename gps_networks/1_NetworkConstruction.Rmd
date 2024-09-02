@@ -1,0 +1,63 @@
+---
+title: "1_NetworkConstruction"
+output: html_document
+date: "2024-09-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load data and packages}
+#load packages
+library(tidyverse); library(scales);library(bipartite);library(ggpubr);library(igraph);library(ergm)
+
+#load data
+metadata <- read.csv("~/Documents/Manuscripts/SAVA_Network/Data/Survey_Demographic_Health.csv")
+vi <- read.csv("~/Downloads/Volume_Intersection.csv")
+animal_dat <- read.csv("~/Documents/Projects/SAVA_multilayer/cleaned_tables/Survey_Animal_Health.csv") %>% rename(id1="animal_id")
+
+```
+
+```{r Construct Networks}
+#Identify villages
+village <- metadata %>% dplyr::select(social_netid, village) %>% rename(id1= social_netid)
+
+#Organize Edge Data (for each village, create an edgelist of bipartite interactions)
+vi_adj <- left_join(vi, village, by = "id1")
+vi_adj1 <- vi_adj %>% select(id1, id2, VI_95, village) %>% rename(weight = VI_95)
+vi_adj2 <- vi_adj1[!grepl("Z", vi_adj1$id1),]
+vi_adj2 <- vi_adj2[!grepl("Z", vi_adj2$id2),]
+vi_mand_edge <- vi_adj2 %>% filter(village =="Mandena") %>% select(id1, id2, weight)
+vi_sara_edge <- vi_adj2 %>% filter(village =="Sarahandrano") %>% select(id1, id2, weight)
+vi_anda_edge <- vi_adj2 %>% filter(village =="Andatsakala") %>% select(id1, id2, weight) 
+vi_adj3 <- vi_adj1
+vi_adj4 <- vi_adj3[grepl("Z", vi_adj3$id1),]
+vi_adj4b <- vi_adj4[grepl("Z", vi_adj4$id2),]
+village2 <- village %>% rename(social_netid =id1)
+vi_adj4c <- left_join(vi_adj4b, animal_dat, by ="id1") %>% select(id1, id2, weight, social_netid)
+vi_adj4d <- left_join(vi_adj4c, village2, by = "social_netid") %>% select(-social_netid)
+vi_mand_edge_a <- vi_adj4d %>% filter(village =="Mandena") %>% select(id1, id2, weight)
+vi_sara_edge_a <- vi_adj4d %>% filter(village =="Sarahandrano") %>% select(id1, id2, weight)
+vi_anda_edge_a <- vi_adj4d %>% filter(village =="Andatsakala") %>% select(id1, id2, weight)
+vi_adj5 <- anti_join(vi_adj1, vi_adj2)
+vi_adj6 <- anti_join(vi_adj5, vi_adj4)
+vi_adj7 <- vi_adj6[grepl("Z", vi_adj6$id1),]
+vi_adj8 <- vi_adj6[grepl("Z", vi_adj6$id2),] 
+colnames(vi_adj8) <- c("id2", "id1", "weight", "village")
+vi_adj8 <- vi_adj8 %>% select(id1, id2, weight,village)
+vi_adj9 <- rbind(vi_adj7, vi_adj8)
+
+vi_mand_edge_m <- vi_adj9 %>% filter(village =="Mandena") %>% select(id1, id2, weight)
+vi_sara_edge_m <- vi_adj9 %>% filter(village =="Sarahandrano") %>% select(id1, id2, weight)
+vi_anda_edge_m <- vi_adj9 %>% filter(village =="Andatsakala") %>% select(id1, id2, weight)
+
+#Save edgelists
+write.csv(vi_mand_edge_m, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
+write.csv(vi_sara_edge_m, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara.csv")
+write.csv(vi_anda_edge_m, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
+
+```
+
+
+
