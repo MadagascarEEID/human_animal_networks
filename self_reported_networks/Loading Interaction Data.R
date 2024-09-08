@@ -4,14 +4,17 @@ animal_interaction_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box
 length(unique(animal_interaction_data$social_netid))
 # cleaning data, selecting only columns that I want, converting binaries to 0 and 1
 demographic_health_data_cleaned <- demographic_health_data |> 
-  mutate(across(starts_with(c("attend_school", "own_", "banking", "grew_crops", "smoke","fever", "diarrhea",
-                              "coughed_blood", "surgery", "difficulty_breathing", "treat", "crops", "cert_member")),
-                ~ifelse(. == "Yes", 1L, 0L)))
+  mutate(across(starts_with(c("own_", "banking", "grew_crops",
+                             "crops")),
+                ~ifelse(. == "Yes", 1L, 0L))) |> 
+  select(survey_date, social_netid, village,age,gender,school_level, household_size, main_activity, 
+         starts_with("material_"), starts_with("own_"),crops_vanilla, landsize_in_daba)
+
 
 animal_interaction_data_cleaned <- animal_interaction_data |>  
-  mutate(across(-starts_with("social_netid"), ~ifelse(. == "Yes", 1L, 0L)))
+  mutate(across(-starts_with("social_netid"), ~ifelse(. == "Yes", 1L, 0L))) |> 
+  select(-starts_with("symptoms"),-starts_with("action_"), contains("frequency"))
 
-dim(animal_interaction_data_cleaned)
 
 merged_df <- inner_join(demographic_health_data_cleaned, animal_interaction_data_cleaned, by = "social_netid")
 
@@ -49,13 +52,14 @@ merged_df <- suppressWarnings(merged_df |>
                                 
                              # house index
                                mutate(house_sol = material_wall_index + material_roof_index + material_floor_index) |> 
+                               mutate(house_sol = scale(house_sol)) |> 
                                
-                            # commerical goods
+                            # commercial goods
                               mutate(commercial_goods = own_cellphone + own_tv + own_bicycle + own_refrigerator +
                                        own_motorcycle + own_computer + own_generator) |> 
+                              mutate(commercial_goods = scale(commercial_goods)) |> 
                               
                              # other things
-                                mutate(total_symptoms_reported = sum(c_across(contains("symptoms")), na.rm=TRUE)) |> 
                                 mutate(total_animal_interactions = sum(c_across(pet_dogs:dead_goats_sheep)), na.rm=TRUE) |> 
                                 mutate(employment_category = if_else(grepl("farm_crops", main_activity) | grepl("farm_mixed", main_activity), "Farmer", 
                                                                      ifelse(grepl("student", main_activity) | grepl("teacher", main_activity), "Education",
@@ -64,29 +68,23 @@ merged_df <- suppressWarnings(merged_df |>
                                 mutate(num_high_risk_exposures = sum(across(contains(c("shared_water","scratched_bitten","feces", "dead",
                                                                                        "raw_undercooked", "eaten_sick"))), na.rm = TRUE)) |> 
                                 mutate(high_risk_exposures_binary = ifelse(num_high_risk_exposures == 0L, 0L, 1L)) |> 
-                                mutate(village_number = ifelse(village == "Mandena", "Village 1", 
-                                                               ifelse(village == "Sarahandrano", "Village 2",
-                                                                      ifelse(grepl("Andatsakala", village) | grepl("Ampandrana", village), "Village 3", NA)))) |> 
-                                mutate(farmer_binary = ifelse(employment_category == "Farmer", 1L, 0L)) |> 
+                                # mutate(village_number = ifelse(village == "Mandena", "Village 1", 
+                                #                                ifelse(village == "Sarahandrano", "Village 2",
+                                #                                       ifelse(grepl("Andatsakala", village) | grepl("Ampandrana", village), "Village 3", NA)))) |> 
+                                # mutate(farmer_binary = ifelse(employment_category == "Farmer", 1L, 0L)) |> 
                                 mutate(school_level_numbered = ifelse(school_level == "None", 0L, 
                                                                       ifelse(school_level == "Primary", 1L,
                                                                              ifelse(school_level == "Secondary", 2L,
                                                                                     ifelse(school_level == "Higher", 3L,
                                                                                            NA))))) |> 
-                                mutate(SARI = ifelse(symptoms_fever == 1 & symptoms_cough == 1 & symptoms_short_of_breath == 1, 1L, 0L)) |> 
-                                mutate(ILI = ifelse(symptoms_fever == 1 & symptoms_cough == 1 | symptoms_muscle_aches == 1 | symptoms_sore_throat == 1, 1L, 0L)))
-                       
+                                rename(grew_vanilla = crops_vanilla) |> 
+  select(-na.rm))
+
 merged_df$survey_date <- as.Date(merged_df$survey_date)
 
 
 n_respondents<-length(unique(merged_df$social_netid))
 n_respondents
 
-# merged_df |>
-#  count(num_high_risk_exposures) |>
-#  arrange(desc(n))
-# # 
-# unique_count <- merged_df |> 
-#   summarise(Unique_Count = n_distinct(social_netid, na.rm = TRUE))
-# 
+colnames(merged_df)
 

@@ -72,7 +72,6 @@ V(bipartite_graph)[V(bipartite_graph)$name == "poultry"]$color <- colors[11]
 
 
 
-
 # # Define the colors for each animal
 # colors <- c("#F0F8FF", "#B0E0E6", "#ADD8E6", "#87CEEB", "#87CEFA", 
 #             "#00BFFF", "#1E90FF", "#6495ED", "#4169E1", "#0000FF", "#0000CD")
