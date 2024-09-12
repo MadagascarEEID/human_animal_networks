@@ -1,5 +1,4 @@
 # loading libraries/data
-library(tidyverse)
 library(here)
 library(igraph)
 source(here("./self_reported_networks/Loading Interaction Data.R"))

@@ -101,7 +101,9 @@ dyad_independent_ergm_list_high_risk <- lapply(bipartite_graph_sna_list_high_ris
          b2cov("household_size") +
          b2cov("school_level") +
          b1factor("animal_category") +
-         b1factor("animal_category"):b2cov("commercial_goods"):b2cov("house_sol"))
+         b1factor("animal_category"):b2cov("commercial_goods")+
+         b1factor("animal_category"):b2cov("house_sol")+
+         b1factor("animal_category"):b2factor("grew_vanilla"))
 }
 )
 

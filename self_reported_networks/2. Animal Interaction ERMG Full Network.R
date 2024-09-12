@@ -1,11 +1,12 @@
 library(here)
-source(here("self_reported_networks/1. Animal Interaction Bipartite.R"))
+source(here("self_reported_networks/1. Animal Interaction Bipartite Full Network.R"))
 library(statnet)
 library(broom)
 set.seed(1234)
 
 # Convert igraph objects to network objects
-graph_names <- c("bipartite_graph_full_network", "bipartite_graph_full_network_ampandrana_andatsakala", "bipartite_graph_full_network_mandena", "bipartite_graph_full_network_sarahandrano")
+graph_names <- c("bipartite_graph_full_network", "bipartite_graph_full_network_ampandrana_andatsakala", 
+                 "bipartite_graph_full_network_mandena", "bipartite_graph_full_network_sarahandrano")
 
 bipartite_graph_full_network_sna <- network(as_biadjacency_matrix(bipartite_graph_full_network))
 
@@ -78,6 +79,7 @@ bipartite_graph_full_network_sna_list <- lapply(bipartite_graph_full_network_sna
   vertices_with_na <- unique(vertices_with_na)
   vertices_with_na <- setdiff(vertices_with_na, 1:12) # excluding animal vertices
   print(vertices_with_na)
+  # length(vertices_with_na)/igraph::with_vertex_() # FIND OUT % VERTICES BEING EXCLUDED
   delete.vertices(graph, vertices_with_na)
 })
 
@@ -101,13 +103,16 @@ dyad_independent_ergm_list_full_network <- lapply(bipartite_graph_full_network_s
          b2cov("household_size") +
          b2cov("school_level") +
          b1factor("animal_category") +
-         b1factor("animal_category"):b2cov("commercial_goods"):b2cov("house_sol"))
+         b1factor("animal_category"):b2cov("commercial_goods")+
+         b1factor("animal_category"):b2cov("house_sol")+
+         b1factor("animal_category"):b2factor("grew_vanilla"))
 }
 )
 
 
 # Summarize ERGM results
 for (i in seq_along(dyad_independent_ergm_list_full_network)) {
+  graph <- bipartite_graph_full_network_sna_list[[i]]  # Define the graph for the current iteration
   village_name <- unique(graph%v%"village") 
   print(village_name[!is.na(village_name)])
   

@@ -68,16 +68,17 @@ merged_df <- suppressWarnings(merged_df |>
                                 mutate(num_high_risk_exposures = sum(across(contains(c("shared_water","scratched_bitten","feces", "dead",
                                                                                        "raw_undercooked", "eaten_sick"))), na.rm = TRUE)) |> 
                                 mutate(high_risk_exposures_binary = ifelse(num_high_risk_exposures == 0L, 0L, 1L)) |> 
-                                # mutate(village_number = ifelse(village == "Mandena", "Village 1", 
-                                #                                ifelse(village == "Sarahandrano", "Village 2",
-                                #                                       ifelse(grepl("Andatsakala", village) | grepl("Ampandrana", village), "Village 3", NA)))) |> 
-                                # mutate(farmer_binary = ifelse(employment_category == "Farmer", 1L, 0L)) |> 
                                 mutate(school_level_numbered = ifelse(school_level == "None", 0L, 
                                                                       ifelse(school_level == "Primary", 1L,
                                                                              ifelse(school_level == "Secondary", 2L,
                                                                                     ifelse(school_level == "Higher", 3L,
                                                                                            NA))))) |> 
                                 rename(grew_vanilla = crops_vanilla) |> 
+                              mutate(age = scale(age)) |> 
+                              mutate(landsize_in_daba = scale(landsize_in_daba)) |> 
+                              mutate(household_size = scale(household_size)) |> 
+                              mutate(school_level_numbered = scale(school_level_numbered)) |> 
+                              
   select(-na.rm))
 
 merged_df$survey_date <- as.Date(merged_df$survey_date)
@@ -86,5 +87,4 @@ merged_df$survey_date <- as.Date(merged_df$survey_date)
 n_respondents<-length(unique(merged_df$social_netid))
 n_respondents
 
-colnames(merged_df)
 
