@@ -100,45 +100,7 @@ V(bipartite_graph_full_network)$school_level[social_netid_vertices] <- school_le
 V(bipartite_graph_full_network)$animal_name <- "Human"  # Initialize the attribute
 V(bipartite_graph_full_network)$animal_name[animal_vertices] <- V(bipartite_graph_full_network)$name[animal_vertices]
 
-# getting network characteristics----
-V(bipartite_graph_full_network)$degree<-igraph::degree(bipartite_graph_full_network)
-mean(V(bipartite_graph_full_network)$degree[V(bipartite_graph_full_network)$type]) ##degrees for humans
-range(V(bipartite_graph_full_network)$degree[V(bipartite_graph_full_network)$type]) ##range for humans
-mean(V(bipartite_graph_full_network)$degree[!V(bipartite_graph_full_network)$type]) ##degrees for animals
-range(V(bipartite_graph_full_network)$degree[!V(bipartite_graph_full_network)$type]) ##range for animals
 
-# # degrees for animals
-animal_degrees <- numeric(length = length(animals))
-
-# Iterate over animal types
-for (i in seq_along(animals)) {
-  # Get the name of the current animal
-  animal <- animals[i]
-
-  # Get the index of the animal vertex in the graph
-  animal_vertex <- which(V(bipartite_graph_full_network)$name == animal)
-
-  # Calculate the degree of the animal vertex
-  animal_degree <- igraph::degree(bipartite_graph_full_network, v = animal_vertex)
-
-  # Store the degree in the vector
-  animal_degrees[i] <- animal_degree
-}
-
-# Print the degrees of each animal
-names(animal_degrees) <- animals
-print(animal_degrees)
-
-V(bipartite_graph_full_network)$label<-""
-V(bipartite_graph_full_network)[animal_vertices]$label<-animals
-V(bipartite_graph_full_network)$color <- "red"
-V(bipartite_graph_full_network)[animal_vertices]$color <- "blue"
-
-plot(bipartite_graph_full_network, 
-     layout = layout.bipartite,
-     vertex.label.color = "black",
-     hjust = 0.5)
-table(merged_df$village)
 
 # doing different bipartite networks for each village ----
 bipartite_graph_full_network_ampandrana_andatsakala <- subgraph(graph = bipartite_graph_full_network, 
@@ -146,11 +108,74 @@ bipartite_graph_full_network_ampandrana_andatsakala <- subgraph(graph = bipartit
                                                                                V(bipartite_graph_full_network)$village == "Andatsakala" | 
                                                                                is.na(V(bipartite_graph_full_network)$village))) # the na vertices are animals!
 
+V(bipartite_graph_full_network_ampandrana_andatsakala)$degree<-igraph::degree(bipartite_graph_full_network_ampandrana_andatsakala)
+mean(V(bipartite_graph_full_network_ampandrana_andatsakala)$degree[V(bipartite_graph_full_network_ampandrana_andatsakala)$type]) ##degrees for humans
+range(V(bipartite_graph_full_network_ampandrana_andatsakala)$degree[V(bipartite_graph_full_network_ampandrana_andatsakala)$type]) ##range for humans
+mean(V(bipartite_graph_full_network_ampandrana_andatsakala)$degree[!V(bipartite_graph_full_network_ampandrana_andatsakala)$type]) ##degrees for animals
+range(V(bipartite_graph_full_network_ampandrana_andatsakala)$degree[!V(bipartite_graph_full_network_ampandrana_andatsakala)$type]) ##range for animals
+
+
+
 
 bipartite_graph_full_network_mandena <- subgraph(graph=bipartite_graph_full_network,
                                                  vids=which(V(bipartite_graph_full_network)$village=="Mandena" |
                                                                                                   is.na(V(bipartite_graph_full_network)$village)))
 
+V(bipartite_graph_full_network_mandena)$degree<-igraph::degree(bipartite_graph_full_network_mandena)
+mean(V(bipartite_graph_full_network_mandena)$degree[V(bipartite_graph_full_network_mandena)$type]) ##degrees for humans
+range(V(bipartite_graph_full_network_mandena)$degree[V(bipartite_graph_full_network_mandena)$type]) ##range for humans
+mean(V(bipartite_graph_full_network_mandena)$degree[!V(bipartite_graph_full_network_mandena)$type]) ##degrees for animals
+range(V(bipartite_graph_full_network_mandena)$degree[!V(bipartite_graph_full_network_mandena)$type]) ##range for animals
+
+
+
+
 bipartite_graph_full_network_sarahandrano <- subgraph(graph=bipartite_graph_full_network, 
                                                       vids=which(V(bipartite_graph_full_network)$village=="Sarahandrano" | 
                                                                                                        is.na(V(bipartite_graph_full_network)$village)))
+V(bipartite_graph_full_network_sarahandrano)$degree<-igraph::degree(bipartite_graph_full_network_sarahandrano)
+mean(V(bipartite_graph_full_network_sarahandrano)$degree[V(bipartite_graph_full_network_sarahandrano)$type]) ##degrees for humans
+range(V(bipartite_graph_full_network_sarahandrano)$degree[V(bipartite_graph_full_network_sarahandrano)$type]) ##range for humans
+mean(V(bipartite_graph_full_network_sarahandrano)$degree[!V(bipartite_graph_full_network_sarahandrano)$type]) ##degrees for animals
+range(V(bipartite_graph_full_network_sarahandrano)$degree[!V(bipartite_graph_full_network_sarahandrano)$type]) ##range for animals
+
+
+## Assigning animal communities in each village based on community detection script----
+# see script: "one_mode_animal_projections.R"
+### Define the animal groups -----
+
+# ampandrana
+comm_1_animals_ampandrana <- c("rodents", "poultry", "domestic_pigs", "dogs", "cows", "cats")
+comm_2_animals_ampandrana <- c("bush_pigs", "carnivores", "goats_sheep", "lemurs", "tenrecs", "wild_birds")
+
+# mandena
+comm_1_animals_mandena<- c("rodents", "poultry", "domestic_pigs", "dogs", "cows", "cats",
+                           "bush_pigs", "carnivores", "goats_sheep", "tenrecs", "wild_birds")
+comm_2_animals_mandena <- c("lemurs")
+
+# sarahandrano
+comm_1_animals_sarahandrano <- c("cats", "cows", "dogs", "domestic_pigs", "poultry",
+                                 "rodents", "tenrecs", "wild_birds")
+comm_2_animals_sarahandrano <- c("goats_sheep", "lemurs")
+comm_3_animals_sarahandrano <- c("bush_pigs", "carnivores")
+
+# Create the new attribute animal_community -----
+#ampandrana
+V(bipartite_graph_full_network_ampandrana_andatsakala)$animal_community <- ifelse(
+  V(bipartite_graph_full_network_ampandrana_andatsakala)$animal_name %in% comm_1_animals_ampandrana, "comm_1",
+  ifelse(V(bipartite_graph_full_network_ampandrana_andatsakala)$animal_name %in% comm_2_animals_ampandrana, "comm_2", NA)
+)
+
+#mandena
+V(bipartite_graph_full_network_mandena)$animal_community <- ifelse(
+  V(bipartite_graph_full_network_mandena)$animal_name %in% comm_1_animals_mandena, "comm_1",
+  ifelse(V(bipartite_graph_full_network_mandena)$animal_name %in% comm_2_animals_mandena, "comm_2", NA)
+)
+
+#sarahandrano
+V(bipartite_graph_full_network_sarahandrano)$animal_community <- ifelse(
+  V(bipartite_graph_full_network_sarahandrano)$animal_name %in% comm_1_animals_sarahandrano, "comm_1",
+  ifelse(V(bipartite_graph_full_network_sarahandrano)$animal_name %in% comm_2_animals_sarahandrano, "comm_2", 
+         ifelse(V(bipartite_graph_full_network_sarahandrano)$animal_name %in% comm_3_animals_sarahandrano, "comm_3", NA)
+))
+
