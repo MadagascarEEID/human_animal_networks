@@ -45,28 +45,35 @@ all_animal_edges_df <- arrange(all_animal_edges_df, social_netid)
 # making bipartite graph----
 bipartite_graph_full_network <- graph_from_data_frame(all_animal_edges_df, directed = FALSE)
 
+
+# adding back in social netid isolates
+isolates <- setdiff(merged_df$social_netid, all_animal_edges_df$social_netid)
+isolate_animals <- setdiff(animals, all_animal_edges_df$animal)
+
+bipartite_graph_full_network <- add_vertices(bipartite_graph_full_network, 
+                                          nv = length(isolates), name = isolates)
+
 # Setting vertex types----
 animal_vertices <- which(V(bipartite_graph_full_network)$name %in% animals)
+
+V(bipartite_graph_full_network)$type <- TRUE
 V(bipartite_graph_full_network)$type[animal_vertices] <- FALSE # animals = FALSE
-V(bipartite_graph_full_network)$type<-ifelse(is.na(V(bipartite_graph_full_network)$type), TRUE, FALSE) # social IDs = true
 
 social_netid_vertices <- which(V(bipartite_graph_full_network)$type) # setting the human mode
 
 ## adding in human vector attributes for MI and demographics ----
 
-village_values <- merged_df$village[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-
-age_values <- merged_df$age[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-gender_values <- merged_df$gender[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-commercial_goods_values <- merged_df$commercial_goods[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-house_sol_values <- merged_df$house_sol[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-grew_vanilla_values <- merged_df$grew_vanilla[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-land_size_values <- merged_df$landsize_in_daba[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-household_size_values <- merged_df$household_size[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
-school_level_values <- merged_df$school_level_numbered[merged_df$social_netid %in% V(bipartite_graph_full_network)$name[social_netid_vertices]]
+village_values <- merged_df$village[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+age_values <- merged_df$age[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+gender_values <- merged_df$gender[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+commercial_goods_values <- merged_df$commercial_goods[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+house_sol_values <- merged_df$house_sol[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+grew_vanilla_values <- merged_df$grew_vanilla[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+land_size_values <- merged_df$landsize_in_daba[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+household_size_values <- merged_df$household_size[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
+school_level_values <- merged_df$school_level_numbered[match(V(bipartite_graph_full_network)$name[social_netid_vertices], merged_df$social_netid)]
 
 # Assign the attributes to the social_netid vertices
-
 V(bipartite_graph_full_network)$village <- NA  # Initialize the attribute
 V(bipartite_graph_full_network)$village[social_netid_vertices] <- village_values
 
@@ -129,7 +136,6 @@ range(V(bipartite_graph_full_network_mandena)$degree[!V(bipartite_graph_full_net
 
 
 
-
 bipartite_graph_full_network_sarahandrano <- subgraph(graph=bipartite_graph_full_network, 
                                                       vids=which(V(bipartite_graph_full_network)$village=="Sarahandrano" | 
                                                                                                        is.na(V(bipartite_graph_full_network)$village)))
@@ -151,8 +157,6 @@ comm_2_animals_ampandrana <- c("bush_pigs", "carnivores", "goats_sheep", "lemurs
 # mandena
 comm_1_animals_mandena<- c("rodents", "poultry", "domestic_pigs", "dogs", "cows", "cats",
                            "bush_pigs", "carnivores", "goats_sheep", "tenrecs", "wild_birds")
-comm_2_animals_mandena <- c("lemurs")
-
 # sarahandrano
 comm_1_animals_sarahandrano <- c("cats", "cows", "dogs", "domestic_pigs", "poultry",
                                  "rodents", "tenrecs", "wild_birds")
@@ -168,9 +172,7 @@ V(bipartite_graph_full_network_ampandrana_andatsakala)$animal_community <- ifels
 
 #mandena
 V(bipartite_graph_full_network_mandena)$animal_community <- ifelse(
-  V(bipartite_graph_full_network_mandena)$animal_name %in% comm_1_animals_mandena, "comm_1",
-  ifelse(V(bipartite_graph_full_network_mandena)$animal_name %in% comm_2_animals_mandena, "comm_2", NA)
-)
+  V(bipartite_graph_full_network_mandena)$animal_name %in% comm_1_animals_mandena, "comm_1", NA)
 
 #sarahandrano
 V(bipartite_graph_full_network_sarahandrano)$animal_community <- ifelse(

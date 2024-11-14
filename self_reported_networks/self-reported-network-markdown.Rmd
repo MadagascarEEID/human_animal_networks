@@ -11,12 +11,19 @@ output:
 ```{r setup, include=FALSE}
 library(here)
 library(knitr)
-
+library(tidyverse)
+library(patchwork)
 source(here("./self_reported_networks/Loading Interaction Data.R"))
 source(here("./self_reported_networks/1. Animal Interaction Bipartite Full Network.R"))
-source(here("./self_reported_networks/2. Animal Interaction ERMG Full Network.R"))
 source(here("./self_reported_networks/3. Animal Interaction Bipartite High Risk.R"))
-source(here("./self_reported_networks/4. Animal Interaction ERMG High Risk.R"))
+
+# loading ergm results
+load("/Users/levkolinski/Desktop/human_animal_networks/ergm_ampandrana_andatsakala_high_risk.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/ergm_ampandrana_andatsakala.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/ergm_mandena_high_risk.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/ergm_mandena.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/ergm_sarahandrano_high_risk.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/ergm_sarahandrano.RData")
 
 library(igraph)
 
@@ -31,13 +38,16 @@ calculate_network_stats <- function(graph, village_name) {
   human_degrees <- V(graph)$degree[V(graph)$type]  # Degrees for humans
   animal_degrees <- V(graph)$degree[!V(graph)$type]  # Degrees for animals
   
+
   # Collect statistics
   stats <- data.frame(
     Village = village_name,
+    Number_Human_Nodes = sum(V(graph)$type == TRUE),
     Mean_Human_Degree = mean(human_degrees),
     SD_Human_Degree = sd(human_degrees),
     Min_Human_Degree = min(human_degrees),
     Max_Human_Degree = max(human_degrees),
+    Number_Animal_Nodes = sum(V(graph)$type == FALSE),
     Mean_Animal_Degree = mean(animal_degrees),
     SD_Animal_Degree = sd(animal_degrees),
     Min_Animal_Degree = min(animal_degrees),
@@ -63,15 +73,19 @@ village_stats_list <- lapply(names(graphs), function(village_name) {
 
 # Combine the results into a single data frame
 village_stats <- bind_rows(village_stats_list)
+village_stats$Village <- factor(village_stats$Village, levels = c("Mandena","Sarahandrano", "Ampandrana Andatsakala"))
+village_stats <- village_stats[order(village_stats$Village), ]
+
 
 # Print the results as a table using knitr::kable for clean display in R Markdown
 kable(village_stats, 
       caption = "Full Network Statistics Comparison Across Villages",
-      col.names = c("Village", "Mean Human Degree", "SD Human Degree", "Min Human Degree", 
-                    "Max Human Degree", "Mean Animal Degree", "SD Animal Degree", "Min Animal Degree",
+      col.names = c("Village","Number Human Nodes", "Mean Human Degree", "SD Human Degree", "Min Human Degree", 
+                    "Max Human Degree", "Number Animal Nodes", "Mean Animal Degree", "SD Animal Degree", "Min Animal Degree",
                     "Max Animal Degree",
                      "Number of Edges", "Density"),
-      digits = 4)
+      digits = 4,
+      row.names = FALSE) 
 ```
 
 ## High Risk Network Descriptive Stats
@@ -91,15 +105,18 @@ village_stats_list_high_risk <- lapply(names(graphs_high_risk), function(village
 
 # Combine the results into a single data frame
 village_stats_high_risk <- bind_rows(village_stats_list_high_risk)
+village_stats_high_risk$Village <- factor(village_stats_high_risk$Village, levels = c("Mandena","Sarahandrano", "Ampandrana Andatsakala"))
+village_stats_high_risk <- village_stats_high_risk[order(village_stats_high_risk$Village), ]
 
 # Print the results as a table using knitr::kable for clean display in R Markdown
 kable(village_stats_high_risk, 
       caption = "Full Network Statistics Comparison Across Villages",
-      col.names = c("Village", "Mean Human Degree", "SD Human Degree", "Min Human Degree", 
-                    "Max Human Degree", "Mean Animal Degree", "SD Animal Degree", "Min Animal Degree",
+      col.names = c("Village", "Number Human Nodes", "Mean Human Degree", "SD Human Degree", "Min Human Degree", 
+                    "Max Human Degree", "Number Animal Nodes", "Mean Animal Degree", "SD Animal Degree", "Min Animal Degree",
                     "Max Animal Degree",
                      "Number of Edges", "Density"),
-      digits = 4)
+      digits = 4,
+      row.names = FALSE)
 
 ```
 ## Projecting Animal Networks -- Full Network
@@ -280,62 +297,120 @@ summary_df <- summary_df |>
   data.frame(row.names = NULL)
 
 colnames(summary_df) <- c("term", "estimate", "standard_error", "MCMC", "z_value",
-                          "p_value", "village")
+                          "p_value", "Village")
 
 summary_df<-summary_df |> 
   select(-c(MCMC, z_value)) |> 
   filter(!grepl("degree", term) & !grepl("edges", term))
 
-summary_df$term <- c("Age", "Male Gender", "CGSOL", "HSOL", "Vanilla", "Land Size",
-                     "Household Size", "School Level", "Animal Cluster 2", "Animal Cluster 2 * CGSOL",
-                     "Animal Cluster 2 * HSOL", "Animal Cluster 2 * Vanilla",
+summary_df$term <- c("Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla Farmer", "Land Size",
+                     "Household Size", "School Level", "Animal Cluster 2", "CGSOL:Animal Cluster 2",
+                     "HSOL:Animal Cluster 2", "Vanilla:Animal Cluster 2",
                      
-                     "Age", "Male Gender", "CGSOL", "HSOL", "Vanilla", "Land Size",
+                     "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla Farmer", "Land Size",
                      "Household Size", "School Level",
                      
-                     "Age", "Male Gender", "CGSOL", "HSOL", "Vanilla", "Land Size",
+                     "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla Farmer", "Land Size",
                      "Household Size", "School Level", "Animal Cluster 2", "Animal Cluster 3",
-                     "Animal Cluster 2 * CGSOL","Animal Cluster 3 * CGSOL",
-                     "Animal Cluster 2 * HSOL", "Animal Cluster 3 * HSOL",
-                     "Animal Cluster 2 * Vanilla", "Animal Cluster 3 * Vanilla")
+                     "CGSOL:Animal Cluster 2","CGSOL:Animal Cluster 3",
+                     "HSOL:Animal Cluster 2", "HSOL:Animal Cluster 3",
+                     "Vanilla:Animal Cluster 2", "Vanilla:Animal Cluster 3")
+
 summary_df_no_cluster<-summary_df |> 
           filter(!str_detect(term, "Cluster")) |> 
-  mutate(lower_ci = estimate - 1.96 * standard_error,
-         upper_ci = estimate + 1.96 * standard_error) 
+  mutate(lower_ci_95 = estimate - 1.96 * standard_error,
+         upper_ci_95 = estimate + 1.96 * standard_error,
+         lower_ci_90 = estimate - 1.644854 * standard_error,
+         upper_ci_90 = estimate + 1.644854 * standard_error,
+         ) 
 
 summary_df_cluster<-summary_df |> 
           filter(str_detect(term, "Cluster")) |> 
-  mutate(lower_ci = estimate - 1.96 * standard_error,
-         upper_ci = estimate + 1.96 * standard_error) 
+  mutate(lower_ci_95 = estimate - 1.96 * standard_error,
+         upper_ci_95 = estimate + 1.96 * standard_error,
+         lower_ci_90 = estimate - 1.644854 * standard_error,
+         upper_ci_90 = estimate + 1.644854 * standard_error,
+         ) 
 
 
 
+# Set factor levels for 'term' in summary_df_high_risk_no_cluster
+summary_df_no_cluster$term <- factor(summary_df_no_cluster$term, 
+                                               levels = rev(c("HSOL", "CGSOL", "Vanilla Farmer", "Land Size", 
+                                                          "Household Size", "School Level", "Gender[Male]", "Age")))
 
-ggplot(summary_df_cluster , aes(x = estimate, y = term, color = village)) + 
+
+full_network_a<-ggplot(summary_df_no_cluster, aes(x = estimate, y = term, color = Village)) + 
+  # Points for estimated effects with dodge position
   geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci),
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
+  # 95% CI as thinner linerange
+  geom_linerange(
+    aes(xmin = lower_ci_95, xmax = upper_ci_95),
+    position = position_dodge(0.5), linewidth = 0.4
+  ) +
+  # 90% CI as thicker linerange
+  geom_linerange(
+    aes(xmin = lower_ci_90, xmax = upper_ci_90),
+    position = position_dodge(0.5), linewidth = 1.2
+  ) + 
+  # Classic theme
   theme_classic() +
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) + 
-  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) + 
-  theme(legend.position = "right", 
-            axis.title.y = element_text(size = 12),
-        axis.title.x = element_text(size = 12))+ geom_vline(xintercept=0, 
-                                                            linetype= "dashed")
+  # Labels
+  labs(x = "Estimated Effect", y = NULL) + 
+  # Colorblind-friendly palette from viridis
+  scale_color_viridis_d(option = "D", end = 0.8) +  
+  # Theme adjustments
+  theme(
+    legend.position = "top", 
+    axis.title.y = element_text(size = 12),
+    axis.title.x = element_text(size = 12)
+  ) +
+  # Reference line at zero
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
-ggplot(summary_df_no_cluster , aes(x = estimate, y = term, color = village)) + 
-  geom_point(position = position_dodge(width = .5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci),
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
+
+
+# Set factor levels for 'term' in summary_df_high_risk_cluster
+summary_df_cluster$term <- factor(summary_df_cluster$term, 
+                                            levels = rev(c("Animal Cluster 2", "Animal Cluster 3","Vanilla:Animal Cluster 2", "HSOL:Animal Cluster 2",
+                                                       "CGSOL:Animal Cluster 2", "Vanilla:Animal Cluster 3", "HSOL:Animal Cluster 3",
+                                                       "CGSOL:Animal Cluster 3")))
+
+
+full_network_b <- ggplot(summary_df_cluster, aes(x = estimate, y = term, color = Village)) + 
+  # Points for estimated effects with dodge position
+  geom_point(position = position_dodge(width = 0.5), size = 3) + 
+  # 95% CI as thinner linerange
+  geom_linerange(
+    aes(xmin = lower_ci_95, xmax = upper_ci_95),
+    position = position_dodge(0.5), linewidth = 0.4
+  ) +
+  # 90% CI as thicker linerange
+  geom_linerange(
+    aes(xmin = lower_ci_90, xmax = upper_ci_90),
+    position = position_dodge(0.5), linewidth = 1.2
+  ) + 
+  # Classic theme
   theme_classic() +
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) + 
-  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) + 
-  theme(legend.position = "right", 
-            axis.title.y = element_text(size = 12),
-        axis.title.x = element_text(size = 12))+ geom_vline(xintercept=0, 
-                                                            linetype= "dashed")
+  # Labels
+  labs(x = "Estimated Effect", y = NULL) + 
+  # Colorblind-friendly palette from viridis
+  scale_color_viridis_d(option = "D", end = 0.8) +  
+  # Theme adjustments
+  theme(
+    legend.position = "top", 
+    axis.title.y = element_text(size = 12),
+    axis.title.x = element_text(size = 12)
+  ) +
+  # Reference line at zero
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
+
+ full_network_a + full_network_b + 
+                 plot_layout(guides = 'keep')+
+  plot_annotation(tag_levels = 'a')+
+  theme(legend.position="none")
+  
+             
 ```
 
 
@@ -356,65 +431,118 @@ summary_df_high_risk <- rbind(as.data.frame(summary(ergm_ampandrana_andatsakala_
 
 summary_df_high_risk <- summary_df_high_risk |> 
   mutate(term = rownames(summary_df_high_risk), .before = "Estimate") |> 
-  mutate(village = c(rep("Ampandrana", 19), rep("Mandena", 17), rep("Sarahandrano", 19))) |> 
+  mutate("Village" = c(rep("Ampandrana", 18), rep("Mandena", 17), rep("Sarahandrano", 19))) |> 
   data.frame(row.names = NULL)
 
 colnames(summary_df_high_risk) <- c("term", "estimate", "standard_error", "MCMC", "z_value",
-                          "p_value", "village")
+                          "p_value", "Village")
 
 summary_df_high_risk<-summary_df_high_risk |> 
   select(-c(MCMC, z_value)) |> 
   filter(!grepl("degree", term) & !grepl("edges", term))
 
-summary_df_high_risk$term <- c("Age", "Male Gender", "CGSOL", "HSOL", "Vanilla", "Land Size",
-                     "Household Size", "School Level", "Animal Cluster 2", "Animal Cluster 2 * CGSOL",
-                     "Animal Cluster 2 * HSOL", "Animal Cluster 2 * Vanilla",
+
+summary_df_high_risk$term <- c("Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla Farmer", "Land Size",
+                     "Household Size", "School Level", "Animal Cluster 2", "CGSOL:Animal Cluster 2",
+                     "HSOL:Animal Cluster 2", "Vanilla:Animal Cluster 2",
                      
-                    "Age", "Male Gender", "CGSOL", "HSOL", "Vanilla", "Land Size",
-                     "Household Size", "School Level", "Animal Cluster 2", "Animal Cluster 2 * CGSOL",
-                     "Animal Cluster 2 * HSOL", "Animal Cluster 2 * Vanilla",
+                    "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla Farmer", "Land Size",
+                     "Household Size", "School Level", "Animal Cluster 2", "CGSOL:Animal Cluster 2",
+                     "HSOL:Animal Cluster 2", "Vanilla:Animal Cluster 2",
                      
-                     "Age", "Male Gender", "CGSOL", "HSOL", "Vanilla", "Land Size",
-                     "Household Size", "School Level", "Animal Cluster 2", "Animal Cluster 2 * CGSOL",
-                     "Animal Cluster 2 * HSOL", "Animal Cluster 2 * Vanilla")
+                     "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla Farmer", "Land Size",
+                     "Household Size", "School Level", "Animal Cluster 2", "CGSOL:Animal Cluster 2",
+                     "HSOL:Animal Cluster 2", "Vanilla:Animal Cluster 2")
 summary_df_high_risk_no_cluster<-summary_df_high_risk |> 
           filter(!str_detect(term, "Cluster")) |> 
-  mutate(lower_ci = estimate - 1.96 * standard_error,
-         upper_ci = estimate + 1.96 * standard_error) 
+  mutate(lower_ci_95 = estimate - 1.96 * standard_error,
+         upper_ci_95 = estimate + 1.96 * standard_error,
+         lower_ci_90 = estimate - 1.644854 * standard_error,
+         upper_ci_90 = estimate + 1.644854 * standard_error,
+         ) 
 
 summary_df_high_risk_cluster<-summary_df_high_risk |> 
           filter(str_detect(term, "Cluster")) |> 
-  mutate(lower_ci = estimate - 1.96 * standard_error,
-         upper_ci = estimate + 1.96 * standard_error) 
+  mutate(lower_ci_95 = estimate - 1.96 * standard_error,
+         upper_ci_95 = estimate + 1.96 * standard_error,
+         lower_ci_90 = estimate - 1.644854 * standard_error,
+         upper_ci_90 = estimate + 1.644854 * standard_error,
+         ) 
+# Set factor levels for 'term' in summary_df_high_risk_no_cluster
+summary_df_high_risk_no_cluster$term <- factor(summary_df_high_risk_no_cluster$term, 
+                                               levels = rev(c("HSOL", "CGSOL", "Vanilla Farmer", "Land Size", 
+                                                          "Household Size", "School Level", "Gender[Male]", "Age")))
+
+# Set factor levels for 'term' in summary_df_high_risk_cluster
+summary_df_high_risk_cluster$term <- factor(summary_df_high_risk_cluster$term, 
+                                            levels = rev(c("Animal Cluster 2", "Vanilla:Animal Cluster 2", 
+                                                       "HSOL:Animal Cluster 2", "CGSOL:Animal Cluster 2")))
 
 
 
-
-ggplot(summary_df_high_risk_cluster , aes(x = estimate, y = term, color = village)) + 
+high_risk_network_b<- ggplot(summary_df_high_risk_cluster, aes(x = estimate, y = term, color = Village)) + 
+  # Points for estimated effects with dodge position
   geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci),
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
+  # 95% CI as thinner linerange
+  geom_linerange(
+    aes(xmin = lower_ci_95, xmax = upper_ci_95),
+    position = position_dodge(0.5), linewidth = 0.4
+  ) +
+  # 90% CI as thicker linerange
+  geom_linerange(
+    aes(xmin = lower_ci_90, xmax = upper_ci_90),
+    position = position_dodge(0.5), linewidth = 1.2
+  ) + 
+  # Classic theme
   theme_classic() +
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) + 
-  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) + 
-  theme(legend.position = "right", 
-            axis.title.y = element_text(size = 12),
-        axis.title.x = element_text(size = 12))+ geom_vline(xintercept=0, 
-                                                            linetype= "dashed")
+  # Labels
+  labs(x = "Estimated Effect", y = NULL) + 
+  # Colorblind-friendly palette from viridis
+  scale_color_viridis_d(option = "D", end = 0.8) +  
+  # Theme adjustments
+  theme(
+    legend.position = "top", 
+    axis.title.y = element_text(size = 12),
+    axis.title.x = element_text(size = 12)
+  ) +
+  # Reference line at zero
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
-ggplot(summary_df_high_risk_no_cluster , aes(x = estimate, y = term, color = village)) + 
-  geom_point(position = position_dodge(width = .5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci),
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
+
+high_risk_network_a <- ggplot(summary_df_high_risk_no_cluster, aes(x = estimate, y = term, color = Village)) + 
+  # Points for estimated effects with dodge position
+  geom_point(position = position_dodge(width = 0.5), size = 3) + 
+  # 95% CI as thinner linerange
+  geom_linerange(
+    aes(xmin = lower_ci_95, xmax = upper_ci_95),
+    position = position_dodge(0.5), linewidth = 0.4
+  ) +
+  # 90% CI as thicker linerange
+  geom_linerange(
+    aes(xmin = lower_ci_90, xmax = upper_ci_90),
+    position = position_dodge(0.5), linewidth = 1.2
+  ) + 
+  # Classic theme
   theme_classic() +
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) + 
-  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) + 
-  theme(legend.position = "right", 
-            axis.title.y = element_text(size = 12),
-        axis.title.x = element_text(size = 12))+ geom_vline(xintercept=0, 
-                                                            linetype= "dashed")
+  # Labels
+  labs(x = "Estimated Effect", y = NULL) + 
+  # Colorblind-friendly palette from viridis
+  scale_color_viridis_d(option = "D", end = 0.8) +  
+  # Theme adjustments
+  theme(
+    legend.position = "top", 
+    axis.title.y = element_text(size = 12),
+    axis.title.x = element_text(size = 12)
+  ) +
+  # Reference line at zero
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
+
+
+high_risk_network_a + high_risk_network_b + 
+  plot_layout(guides = 'keep')+
+  plot_annotation(tag_levels = 'a')+
+  theme(legend.position="none")
+  
 ````
 
 

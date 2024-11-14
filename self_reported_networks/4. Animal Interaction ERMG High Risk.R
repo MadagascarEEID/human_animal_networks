@@ -1,6 +1,7 @@
 library(here)
 source(here("self_reported_networks/3. Animal Interaction Bipartite High Risk.R"))
 library(broom)
+library(ergMargins)
 set.seed(1234)
 
 # Convert igraph objects to network objects
@@ -127,15 +128,18 @@ ergm_ampandrana_andatsakala_high_risk<- ergm(bipartite_graph_sna_list_high_risk[
          b1factor("animal_community"):b2factor("grew_vanilla") +         
          b2degree(1)+
          b2degree(2) +
+           b2degree(3) +
+           
          b2degree(4) +
          b2degree(5) +
          b2degree(7)+
          b2degree(8),
          control = control.ergm(seed = 1234))
 
-mcmc.diagnostics(ergm_ampandrana_andatsakala_high_risk)
-ergm:::plot.gof(gof(ergm_ampandrana_andatsakala_high_risk))
-gof(ergm_ampandrana_andatsakala_high_risk)
+# mcmc.diagnostics(ergm_ampandrana_andatsakala_high_risk)
+# ergm:::plot.gof(gof(ergm_ampandrana_andatsakala_high_risk))
+# gof(ergm_ampandrana_andatsakala_high_risk)
+vif.ergm(ergm_ampandrana_andatsakala_high_risk)
 summary(ergm_ampandrana_andatsakala_high_risk)
 
 
@@ -152,15 +156,15 @@ ergm_mandena_high_risk<- ergm(bipartite_graph_sna_list_high_risk[[2]] ~ edges +
                                                b1factor("animal_community"):b2cov("commercial_goods")+
                                                b1factor("animal_community"):b2cov("house_sol")+
                                                b1factor("animal_community"):b2factor("grew_vanilla") +         
-                                               b2degree(1)+
-                                               b2degree(2)+
-                                              b2degree(4)+
-                                              b2degree(5),
-                              control = control.ergm(seed=1234))
-mcmc.diagnostics(ergm_mandena_high_risk)
-ergm:::plot.gof(gof(ergm_mandena_high_risk))
-gof(ergm_mandena_high_risk)
-summary(ergm_mandena_high_risk)
+                                 b2degree(2)+
+                                                b2degree(3)+
+                                              b2degree(4),
+                              control = control.ergm(seed=123))
+# mcmc.diagnostics(ergm_mandena_high_risk)
+# ergm:::plot.gof(gof(ergm_mandena_high_risk))
+# gof(ergm_mandena_high_risk)
+# vif.ergm(ergm_mandena_high_risk)
+ summary(ergm_mandena_high_risk)
 
 
 ergm_sarahandrano_high_risk<- ergm(bipartite_graph_sna_list_high_risk[[3]] ~ edges +
@@ -176,7 +180,6 @@ ergm_sarahandrano_high_risk<- ergm(bipartite_graph_sna_list_high_risk[[3]] ~ edg
                                                b1factor("animal_community"):b2cov("commercial_goods")+
                                                b1factor("animal_community"):b2cov("house_sol")+
                                                b1factor("animal_community"):b2factor("grew_vanilla") +         
-                                               b2degree(1)+
                                                b2degree(2) +
                                                b2degree(3) +
                                                b2degree(4)+
@@ -184,8 +187,9 @@ ergm_sarahandrano_high_risk<- ergm(bipartite_graph_sna_list_high_risk[[3]] ~ edg
                                      b2degree(8),
                                              control = control.ergm(seed = 1234))
 
-mcmc.diagnostics(ergm_sarahandrano_high_risk)
-ergm:::plot.gof(gof(ergm_sarahandrano_high_risk))
-gof(ergm_sarahandrano_high_risk)
+# mcmc.diagnostics(ergm_sarahandrano_high_risk)
+#ergm:::plot.gof(gof(ergm_sarahandrano_high_risk))
+# gof(ergm_sarahandrano_high_risk)
+vif.ergm(ergm_sarahandrano_high_risk)
 summary(ergm_sarahandrano_high_risk)
 

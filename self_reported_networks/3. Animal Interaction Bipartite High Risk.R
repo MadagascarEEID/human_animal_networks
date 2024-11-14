@@ -89,16 +89,17 @@ social_netid_vertices <- which(V(bipartite_graph_high_risk)$type)
 
 ## adding in human vector attributes for MI and demographics ----
 
-village_values <- merged_df$village[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
+village_values <- merged_df$village[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
 
-age_values <- merged_df$age[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-gender_values <- merged_df$gender[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-commercial_goods_values <- merged_df$commercial_goods[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-house_sol_values <- merged_df$house_sol[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-grew_vanilla_values <- merged_df$grew_vanilla[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-land_size_values <- merged_df$landsize_in_daba[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-household_size_values <- merged_df$household_size[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-school_level_values <- merged_df$school_level_numbered[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
+age_values <- merged_df$age[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+
+gender_values <- merged_df$gender[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+commercial_goods_values <- merged_df$commercial_goods[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+house_sol_values <- merged_df$house_sol[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+grew_vanilla_values <- merged_df$grew_vanilla[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+land_size_values <- merged_df$landsize_in_daba[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+household_size_values <- merged_df$household_size[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+school_level_values <-merged_df$school_level_numbered[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
 
 # Assign the attributes to the social_netid vertices
 
