@@ -153,3 +153,34 @@ for (i in seq_along(bipartite_graphs_high_risk)) {
 
 
 
+## animal cluster heat map
+
+library(ggplot2)
+library(reshape2)
+library(viridis)
+# Create a dataset of presence/absence
+data <- data.frame(
+  Animal = c("Bush Pigs", "Carnivores", "Cats", "Cows", "Dogs", "Domestic Pigs", 
+             "Goats/Sheep", "Lemurs", "Poultry", "Rodents", "Tenrecs", "Wild Birds"),
+  `Village A Full` = c(rep("Cluster 1",7), NA, rep("Cluster 1", 4)),
+  `Village A High-Risk` = c("Cluster 1", "Cluster 2", "Cluster 2", rep("Cluster 1", 4), NA, rep("Cluster 1", 4)),
+  `Village B Full` = c(rep("Cluster 3",2),rep("Cluster 1", 4), rep("Cluster 2", 2), rep("Cluster 1", 4)),
+  `Village B High-Risk` = c(rep("Cluster 2",2), rep("Cluster 1", 4), "Cluster 2", rep("Cluster 1", 5)),
+  `Village C Full`= c(rep("Cluster 2",2), rep("Cluster 1", 4), rep("Cluster 2", 2), rep("Cluster 1", 2), rep("Cluster 2", 2)),
+  `Village C High-Risk` = c(rep("Cluster 2",2), rep("Cluster 1", 5), "Cluster 2", rep("Cluster 1", 2), "Cluster 2", "Cluster 1")
+  )
+
+# Melt data into long format for ggplot2
+data_long <- reshape2::melt(data, id.vars = "Animal", variable.name = "Network", value.name = "Cluster") |> 
+  mutate(Network = gsub("\\.", " ", Network))
+
+
+# Create the heatmap
+ggplot(data_long, aes(x = Network, y = Animal, fill = Cluster)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis(discrete = TRUE, option = "plasma", na.value = "grey80") + # Colorblind-friendly palette
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Animal Cluster Classification Across Networks", x = NULL, y = "Animal")
+
+
