@@ -30,7 +30,7 @@ vi_adj2 <- vi_adj1[!grepl("Z", vi_adj1$id1),]
 vi_adj2 <- vi_adj2[!grepl("Z", vi_adj2$id2),]
 vi_mand_edge <- vi_adj2 %>% filter(village =="Mandena") %>% select(id1, id2, weight)
 vi_sara_edge <- vi_adj2 %>% filter(village =="Sarahandrano") %>% select(id1, id2, weight)
-vi_anda_edge <- vi_adj2 %>% filter(village =="Andatsakala") %>% select(id1, id2, weight) 
+vi_anda_edge <- vi_adj2 %>% filter(village =="Andatsakala"|village=="Ampandrana") %>% select(id1, id2, weight) 
 vi_adj3 <- vi_adj1
 vi_adj4 <- vi_adj3[grepl("Z", vi_adj3$id1),]
 vi_adj4b <- vi_adj4[grepl("Z", vi_adj4$id2),]
@@ -39,7 +39,7 @@ vi_adj4c <- left_join(vi_adj4b, animal_dat, by ="id1") %>% select(id1, id2, weig
 vi_adj4d <- left_join(vi_adj4c, village2, by = "social_netid") %>% select(-social_netid)
 vi_mand_edge_a <- vi_adj4d %>% filter(village =="Mandena") %>% select(id1, id2, weight)
 vi_sara_edge_a <- vi_adj4d %>% filter(village =="Sarahandrano") %>% select(id1, id2, weight)
-vi_anda_edge_a <- vi_adj4d %>% filter(village =="Andatsakala") %>% select(id1, id2, weight)
+vi_anda_edge_a <- vi_adj4d %>% filter(village =="Andatsakala"|village=="Ampandrana") %>% select(id1, id2, weight)
 vi_adj5 <- anti_join(vi_adj1, vi_adj2)
 vi_adj6 <- anti_join(vi_adj5, vi_adj4)
 vi_adj7 <- vi_adj6[grepl("Z", vi_adj6$id1),]
@@ -47,17 +47,48 @@ vi_adj8 <- vi_adj6[grepl("Z", vi_adj6$id2),]
 colnames(vi_adj8) <- c("id2", "id1", "weight", "village")
 vi_adj8 <- vi_adj8 %>% select(id1, id2, weight,village)
 vi_adj9 <- rbind(vi_adj7, vi_adj8)
+vi_adj9$village[vi_adj9$village=="Ampandrana"] <- "Andatsakala"
 
 vi_mand_edge_m <- vi_adj9 %>% filter(village =="Mandena") %>% select(id1, id2, weight)
 vi_sara_edge_m <- vi_adj9 %>% filter(village =="Sarahandrano") %>% select(id1, id2, weight)
 vi_anda_edge_m <- vi_adj9 %>% filter(village =="Andatsakala") %>% select(id1, id2, weight)
 
-#Save edgelists
-write.csv(vi_mand_edge_m, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
-write.csv(vi_sara_edge_m, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara.csv")
-write.csv(vi_anda_edge_m, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
+```
+
+```{r}
+ggplot(data = vi_adj9[!is.na(vi_adj9$village),], aes(x=weight, color=village))+
+  geom_histogram()+
+  xlim(0,1)
+
+mean(vi_mand_edge_m$weight)
+median(vi_mand_edge_m$weight)
+quantile(vi_mand_edge_m$weight, 0.90)
+
+
+mean(vi_sara_edge_m$weight)
+median(vi_sara_edge_m$weight)
+quantile(vi_sara_edge_m$weight, 0.90)
+
+mean(na.omit(vi_anda_edge_m$weight))
+median(na.omit(vi_anda_edge_m$weight))
+quantile(na.omit(vi_anda_edge_m$weight), 0.90)
+
+mean(na.omit(vi_adj9$weight))
+median(na.omit(vi_adj9$weight))
+
+
+vi_mand_edge_m2 <- vi_mand_edge_m %>% filter(weight >=4.7)
+vi_sara_edge_m2 <- vi_sara_edge_m %>% filter(weight >=6.25)
+vi_anda_edge_m2 <- vi_anda_edge_m %>% filter(weight >=4.22)
 
 ```
 
+```{r Construct Networks}
+#Save edgelists
+write.csv(vi_mand_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
+write.csv(vi_sara_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara.csv")
+write.csv(vi_anda_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
+
+```
 
 
