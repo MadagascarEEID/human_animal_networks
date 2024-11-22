@@ -14,18 +14,30 @@ for (animal in animals) {
   feces_cols <- grep(paste0("feces_", animal), names(merged_df), value = TRUE)
   shared_water_cols <- grep(paste0("shared_water_", animal), names(merged_df), value = TRUE)
   scratched_bitten_cols <- grep(paste0("scratched_bitten_", animal), names(merged_df), value = TRUE)
-  
+  cooked_handled_cols <- grep(paste0("cooked_handled_", animal), names(merged_df), value = TRUE)
+  raw_undercooked_cols <- grep(paste0("raw_undercooked_", animal), names(merged_df), value = TRUE)
+  eaten_sick_cols <- grep(paste0("eaten_sick_", animal), names(merged_df), value = TRUE)
+  slaughtered_cols <- grep(paste0("slaughtered_", animal), names(merged_df), value = TRUE)
+
   # Create edges for animals reported at least once
   merged_df[[paste0(animal, "_edge_feces")]] <- as.integer(rowSums(merged_df[feces_cols]) > 0)
   merged_df[[paste0(animal, "_edge_shared_water")]] <- as.integer(rowSums(merged_df[shared_water_cols]) > 0)
   merged_df[[paste0(animal, "_edge_scratched_bitten")]] <- as.integer(rowSums(merged_df[scratched_bitten_cols]) > 0)
+  merged_df[[paste0(animal, "_edge_cooked_handled")]] <- as.integer(rowSums(merged_df[cooked_handled_cols]) > 0)
+  merged_df[[paste0(animal, "_edge_raw_undercooked")]] <- as.integer(rowSums(merged_df[raw_undercooked_cols]) > 0)
+  merged_df[[paste0(animal, "_edge_eaten_sick")]] <- as.integer(rowSums(merged_df[eaten_sick_cols]) > 0)
+  merged_df[[paste0(animal, "_edge_slaughered")]] <- as.integer(rowSums(merged_df[slaughtered_cols]) > 0)
+  
   
   # create high risk edge
   merged_df[[paste0(animal, "_edge_high_risk")]] <- as.integer(rowSums(merged_df[, c(paste0(animal, "_edge_feces"),
                                                                                      paste0(animal, "_edge_shared_water"),
-                                                                                     paste0(animal, "_edge_scratched_bitten"))]) > 0)
+                                                                                     paste0(animal, "_edge_scratched_bitten"),
+                                                                                     paste0(animal, "_edge_cooked_handled"),
+                                                                                     paste0(animal, "_edge_raw_undercooked"),
+                                                                                     paste0(animal, "_edge_eaten_sick"),
+                                                                                     paste0(animal, "_edge_slaughered"))]) > 0)
 }
-
 
 
 animal_bipartite_high_risk_df_wide <- merged_df |> 
@@ -77,16 +89,17 @@ social_netid_vertices <- which(V(bipartite_graph_high_risk)$type)
 
 ## adding in human vector attributes for MI and demographics ----
 
-village_values <- merged_df$village[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
+village_values <- merged_df$village[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
 
-age_values <- merged_df$age[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-gender_values <- merged_df$gender[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-commercial_goods_values <- merged_df$commercial_goods[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-house_sol_values <- merged_df$house_sol[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-grew_vanilla_values <- merged_df$grew_vanilla[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-land_size_values <- merged_df$landsize_in_daba[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-household_size_values <- merged_df$household_size[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
-school_level_values <- merged_df$school_level_numbered[merged_df$social_netid %in% V(bipartite_graph_high_risk)$name[social_netid_vertices]]
+age_values <- merged_df$age[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+
+gender_values <- merged_df$gender[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+commercial_goods_values <- merged_df$commercial_goods[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+house_sol_values <- merged_df$house_sol[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+grew_vanilla_values <- merged_df$grew_vanilla[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+land_size_values <- merged_df$landsize_in_daba[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+household_size_values <- merged_df$household_size[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
+school_level_values <-merged_df$school_level_numbered[match(V(bipartite_graph_high_risk)$name[social_netid_vertices], merged_df$social_netid)]
 
 # Assign the attributes to the social_netid vertices
 
@@ -123,56 +136,82 @@ V(bipartite_graph_high_risk)$school_level[social_netid_vertices] <- school_level
 V(bipartite_graph_high_risk)$animal_name <- "Human"  # Initialize the attribute
 V(bipartite_graph_high_risk)$animal_name[animal_vertices] <- V(bipartite_graph_high_risk)$name[animal_vertices]
 
-# getting network characteristics----
-V(bipartite_graph_high_risk)$degree<-igraph::degree(bipartite_graph_high_risk)
-mean(V(bipartite_graph_high_risk)$degree[V(bipartite_graph_high_risk)$type]) ##degrees for humans
-range(V(bipartite_graph_high_risk)$degree[V(bipartite_graph_high_risk)$type]) ##range for humans
-mean(V(bipartite_graph_high_risk)$degree[!V(bipartite_graph_high_risk)$type]) ##degrees for animals
-range(V(bipartite_graph_high_risk)$degree[!V(bipartite_graph_high_risk)$type]) ##range for animals
-
-# # degrees for animals
-animal_degrees <- numeric(length = length(animals))
-
-# Iterate over animal types
-for (i in seq_along(animals)) {
-  # Get the name of the current animal
-  animal <- animals[i]
-  
-  # Get the index of the animal vertex in the graph
-  animal_vertex <- which(V(bipartite_graph_high_risk)$name == animal)
-  
-  # Calculate the degree of the animal vertex
-  animal_degree <- igraph::degree(bipartite_graph_high_risk, v = animal_vertex)
-  
-  # Store the degree in the vector
-  animal_degrees[i] <- animal_degree
-}
-
-# Print the degrees of each animal
-names(animal_degrees) <- animals
-print(animal_degrees)
-
-V(bipartite_graph_high_risk)$label<-""
-V(bipartite_graph_high_risk)[animal_vertices]$label<-animals
-V(bipartite_graph_high_risk)$color <- "red"
-V(bipartite_graph_high_risk)[animal_vertices]$color <- "blue"
-
-plot(bipartite_graph_high_risk, 
-     layout = layout.bipartite,
-     vertex.label.color = "black",
-     hjust = 0.5)
 
 # doing different bipartite networks for each village ----
+# ampandrana adatsakala
 bipartite_graph_high_risk_ampandrana_andatsakala <- subgraph(graph = bipartite_graph_high_risk, 
                                                                 vids = which(V(bipartite_graph_high_risk)$village == "Ampandrana" | 
                                                                                V(bipartite_graph_high_risk)$village == "Andatsakala" | 
                                                                                is.na(V(bipartite_graph_high_risk)$village))) # the na vertices are animals!
 
+V(bipartite_graph_high_risk_ampandrana_andatsakala)$degree<-igraph::degree(bipartite_graph_high_risk_ampandrana_andatsakala)
+mean(V(bipartite_graph_high_risk_ampandrana_andatsakala)$degree[V(bipartite_graph_high_risk_ampandrana_andatsakala)$type]) ##degrees for humans
+range(V(bipartite_graph_high_risk_ampandrana_andatsakala)$degree[V(bipartite_graph_high_risk_ampandrana_andatsakala)$type]) ##range for humans
+mean(V(bipartite_graph_high_risk_ampandrana_andatsakala)$degree[!V(bipartite_graph_high_risk_ampandrana_andatsakala)$type]) ##degrees for animals
+range(V(bipartite_graph_high_risk_ampandrana_andatsakala)$degree[!V(bipartite_graph_high_risk_ampandrana_andatsakala)$type]) ##range for animals
 
+
+# mandena
 bipartite_graph_high_risk_mandena <- subgraph(graph=bipartite_graph_high_risk,
                                                  vids=which(V(bipartite_graph_high_risk)$village=="Mandena" |
                                                               is.na(V(bipartite_graph_high_risk)$village)))
 
+
+V(bipartite_graph_high_risk_mandena)$degree<-igraph::degree(bipartite_graph_high_risk_mandena)
+mean(V(bipartite_graph_high_risk_mandena)$degree[V(bipartite_graph_high_risk_mandena)$type]) ##degrees for humans
+range(V(bipartite_graph_high_risk_mandena)$degree[V(bipartite_graph_high_risk_mandena)$type]) ##range for humans
+mean(V(bipartite_graph_high_risk_mandena)$degree[!V(bipartite_graph_high_risk_mandena)$type]) ##degrees for animals
+range(V(bipartite_graph_high_risk_mandena)$degree[!V(bipartite_graph_high_risk_mandena)$type]) ##range for animals
+
+# sarahandrano
 bipartite_graph_high_risk_sarahandrano <- subgraph(graph=bipartite_graph_high_risk, 
                                                       vids=which(V(bipartite_graph_high_risk)$village=="Sarahandrano" | 
                                                                    is.na(V(bipartite_graph_high_risk)$village)))
+
+V(bipartite_graph_high_risk_sarahandrano)$degree<-igraph::degree(bipartite_graph_high_risk_sarahandrano)
+mean(V(bipartite_graph_high_risk_sarahandrano)$degree[V(bipartite_graph_high_risk_sarahandrano)$type]) ##degrees for humans
+range(V(bipartite_graph_high_risk_sarahandrano)$degree[V(bipartite_graph_high_risk_sarahandrano)$type]) ##range for humans
+mean(V(bipartite_graph_high_risk_sarahandrano)$degree[!V(bipartite_graph_high_risk_sarahandrano)$type]) ##degrees for animals
+range(V(bipartite_graph_high_risk_sarahandrano)$degree[!V(bipartite_graph_high_risk_sarahandrano)$type]) ##range for animals
+
+
+## Assigning animal communities in each village based on community detection script----
+# see script: "one_mode_animal_projections.R"
+### Define the animal groups -----
+
+# ampandrana
+comm_1_animals_ampandrana_high_risk <- c("cats", "cows", "dogs", "domestic_pigs",
+                                         "goats_sheep", "poultry", "rodents", "wild_birds")
+comm_2_animals_ampandrana_high_risk <- c("bush_pigs", "carnivores", "lemurs", "tenrecs")
+
+# mandena
+comm_1_animals_mandena_high_risk<- c("bush_pigs", "cows", "dogs", "domestic_pigs",
+                                     "poultry", "rodents", "tenrecs", "wild_birds")
+comm_2_animals_mandena_high_risk <- c("carnivores","cats","goats_sheep")
+
+# sarahandrano
+comm_1_animals_sarahandrano_high_risk <- c("cats", "cows", "dogs", "domestic_pigs","lemurs" ,
+                                 "poultry", "rodents", "tenrecs", "wild_birds")
+comm_2_animals_sarahandrano_high_risk <- c("bush_pigs", "carnivores", "goats_sheep")
+
+
+# Create the new attribute animal_community -----
+#ampandrana
+V(bipartite_graph_high_risk_ampandrana_andatsakala)$animal_community <- ifelse(
+  V(bipartite_graph_high_risk_ampandrana_andatsakala)$animal_name %in% comm_1_animals_ampandrana_high_risk, "comm_1",
+  ifelse(V(bipartite_graph_high_risk_ampandrana_andatsakala)$animal_name %in% comm_2_animals_ampandrana_high_risk, "comm_2", NA)
+)
+
+#mandena
+V(bipartite_graph_high_risk_mandena)$animal_community <- ifelse(
+  V(bipartite_graph_high_risk_mandena)$animal_name %in% comm_1_animals_mandena_high_risk, "comm_1",
+  ifelse(V(bipartite_graph_high_risk_mandena)$animal_name %in% comm_2_animals_mandena_high_risk, "comm_2", NA)
+)
+
+#sarahandrano
+V(bipartite_graph_high_risk_sarahandrano)$animal_community <- ifelse(
+  V(bipartite_graph_high_risk_sarahandrano)$animal_name %in% comm_1_animals_sarahandrano_high_risk, "comm_1",
+  ifelse(V(bipartite_graph_high_risk_sarahandrano)$animal_name %in% comm_2_animals_sarahandrano_high_risk, "comm_2", NA)
+  )
+
+
