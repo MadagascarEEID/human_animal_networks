@@ -1,6 +1,6 @@
 library(here)
 library(igraph)
-source(here("./self_reported_networks/Loading Interaction Data.R"))
+source(here("./self_reported_networks/The_ReUp/Loading Interaction Data.R"))
 
 merged_df<- merged_df |> 
   select(-grep("frequency", names(merged_df)))

@@ -1,7 +1,7 @@
 # loading libraries/data
 library(here)
 library(igraph)
-source(here("./self_reported_networks/Loading Interaction Data.R"))
+source(here("./self_reported_networks/The_ReUp/Loading Interaction Data.R"))
 
 
 # setting animals of interest ----

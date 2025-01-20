@@ -50,6 +50,7 @@ rsconnect/
 
 # ignoring PPI
 *.csv
+*.xlsx
 *.html
 .DS_Store
 self_reported_networks/self reported network markdown.Rmd
@@ -57,3 +58,4 @@ self_reported_networks/ERGM Results.docx
 *.RData
 *.png
 *.jpeg
+$.jpg
