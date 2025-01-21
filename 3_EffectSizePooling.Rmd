@@ -110,8 +110,7 @@ people_plot_pooled <- ggplot(meta_df_filtered, aes(x = Estimate, y = Variable)) 
     axis.title.y = element_text(size = 12),
     axis.title.x = element_text(size = 12)
   ) +
-  # Reference line at zero
-  geom_vline(xintercept = 0, inetype = "dashed", color = "gray40")
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
 
 meta_df_filtered2 <- meta_df %>% filter(Variable =="Cattle"| Variable =="HSOL:Cattle"| Variable =="CGSOL:Cattle"| Variable =="Vanilla:Cattle"| Variable =="Animal Sex[Male]")
