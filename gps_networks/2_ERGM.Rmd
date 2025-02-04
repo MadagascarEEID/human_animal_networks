@@ -199,6 +199,13 @@ sex <- sex[ net_mand %v% 'vertex.names' ]
 network::set.vertex.attribute(net_mand,"sex",sex)
 network::get.vertex.attribute(net_mand,attrname="sex")
 
+#Animal species
+animal_species <- animal_dat$species
+names(animal_species) <- animal_dat$id1
+animal_species <- animal_species[ net_mand %v% 'vertex.names' ]
+network::set.vertex.attribute(net_mand,"animal_species",animal_species)
+network::get.vertex.attribute(net_mand,attrname="animal_species")
+
 
 #Remove nodes that have missing values (3% of nodes)
 nodes_to_remove <- c(92, 78, 145, 162, 167, 172, 94)
@@ -297,6 +304,14 @@ names(sex) <- animal_dat$id1
 sex <- sex[ net_sara %v% 'vertex.names' ]
 network::set.vertex.attribute(net_sara,"sex",sex)
 network::get.vertex.attribute(net_sara,attrname="sex")
+
+#Animal species
+animal_species <- animal_dat$species
+names(animal_species) <- animal_dat$id1
+animal_species <- animal_species[ net_sara %v% 'vertex.names' ]
+network::set.vertex.attribute(net_sara,"animal_species",animal_species)
+network::get.vertex.attribute(net_sara,attrname="animal_species")
+
 
 #Remove nodes that have missing values (2.6% of nodes)
 nodes_to_remove_sara <- c(267,11, 73, 177, 188, 200, 240, 248, 302, 327, 354, 409)
@@ -397,6 +412,14 @@ names(sex) <- animal_dat$id1
 sex <- sex[ net_anda %v% 'vertex.names' ]
 network::set.vertex.attribute(net_anda,"sex",sex)
 network::get.vertex.attribute(net_anda,attrname="sex")
+
+#Animal species
+animal_species <- animal_dat$species
+names(animal_species) <- animal_dat$id1
+animal_species <- animal_species[ net_anda %v% 'vertex.names' ]
+network::set.vertex.attribute(net_anda,"animal_species",animal_species)
+network::get.vertex.attribute(net_anda,attrname="animal_species")
+
 
 #Remove nodes that have missing values (5% of nodes)
 nodes_to_remove_anda <- c(14, 42, 70, 75, 107, 118,192, 203,  237, 262, 293, 256, 391, 398, 401, 409, 297, 301, 358, 395, 397, 356, 405)
@@ -619,19 +642,162 @@ write.csv(summary_df, "summary_df_spatial.csv")
 
 ```
 
+```{r}
+library(igraph)
+library(ggraph)
+library(ggplot2)
+library(network)
+library(ggpubr)
+
+# Extract edges from network object
+edges_anda <- as.matrix.network.edgelist(net_anda)
+
+# Extract node attributes
+node_types <- network::get.vertex.attribute(net_anda, "type")  # Bipartite type
+animal_species <- network::get.vertex.attribute(net_anda, "animal_species")
+
+# Create igraph object manually
+g_anda <- graph_from_edgelist(edges_anda, directed = FALSE)
+
+# Assign bipartite attribute
+V(g_anda)$type <- node_types == "People"  # Ensure logical bipartite TRUE/FALSE
+
+# Compute node degrees
+node_degrees <- degree(g_anda) / 10
+V(g_anda)$degree <- node_degrees  # Assign degree as a vertex attribute
+
+# Define node colors based on type and species
+V(g_anda)$node_colors <- ifelse(
+  V(g_anda)$type, "gray50",  # People
+  ifelse(
+    animal_species == "Cow", "#E69F00",
+    ifelse(
+      animal_species == "Pig", "#56B4E9",
+      ifelse(
+        animal_species == "Cat", "#009E73",
+        ifelse(
+          animal_species == "Dog",  "#F0E442",
+          "white"  # Default for unspecified animals
+        )
+      )
+    )
+  )
+)
+
+set.seed(123)
+
+# Plot using ggraph with bipartite layout
+anda_plot <- ggraph(g_anda) + 
+  geom_edge_link(color = "grey60", alpha=0.5) + 
+  geom_node_point(aes(fill = node_colors, size = degree), shape = 21, color = "black", stroke = 0.7) +  # Black outline
+  scale_fill_identity() +
+  scale_size_continuous(range = c(0.5, max(node_degrees) * 0.5)) +
+  theme_void() +
+  theme(legend.position = "none")
+print(anda_plot)
 
 
 
-#Questions:
-- How do we treat school level? 
-- Do we add animal sex/ age? 
-- How to do the interaction term? 
-- Network terms 
-- Working with really imbalanced terms 
+
+# Extract edges from network object
+edges_mand <- as.matrix.network.edgelist(net_mand)
+
+# Extract node attributes
+node_types <- network::get.vertex.attribute(net_mand, "type")  # Bipartite type
+animal_species <- network::get.vertex.attribute(net_mand, "animal_species")
+
+# Create igraph object manually
+g_mand <- graph_from_edgelist(edges_mand, directed = FALSE)
+
+# Assign bipartite attribute
+V(g_mand)$type <- node_types == "People"  # Ensure logical bipartite TRUE/FALSE
+
+# Compute node degrees
+node_degrees <- degree(g_mand) / 10
+V(g_mand)$degree <- node_degrees  # Assign degree as a vertex attribute
+
+# Define node colors based on type and species
+V(g_mand)$node_colors <- ifelse(
+  V(g_mand)$type, "gray50",  # People
+  ifelse(
+    animal_species == "Cow", "#E69F00",
+    ifelse(
+      animal_species == "Pig", "#56B4E9",
+      ifelse(
+        animal_species == "Cat", "#009E73",
+        ifelse(
+          animal_species == "Dog",  "#F0E442",
+          "white"  # Default for unspecified animals
+        )
+      )
+    )
+  )
+)
+
+set.seed(123)
+
+# Plot using ggraph with bipartite layout
+mand_plot <- ggraph(g_mand) + 
+  geom_edge_link(color = "grey60", alpha=0.5) + 
+  geom_node_point(aes(fill = node_colors, size = degree), shape = 21, color = "black", stroke = 0.7) +  # Black outline
+  scale_fill_identity() +
+  scale_size_continuous(range = c(0.5, max(node_degrees) * 0.5)) +
+  theme_void() +
+  theme(legend.position = "none")
+print(mand_plot)
 
 
 
 
 
+# Extract edges from network object
+edges_sara <- as.matrix.network.edgelist(net_sara)
 
+# Extract node attributes
+node_types <- network::get.vertex.attribute(net_sara, "type")  # Bipartite type
+animal_species <- network::get.vertex.attribute(net_sara, "animal_species")
+
+# Create igraph object manually
+g_sara <- graph_from_edgelist(edges_sara, directed = FALSE)
+
+# Assign bipartite attribute
+V(g_sara)$type <- node_types == "People"  # Ensure logical bipartite TRUE/FALSE
+
+# Compute node degrees
+node_degrees <- degree(g_sara) / 10
+V(g_sara)$degree <- node_degrees  # Assign degree as a vertex attribute
+
+# Define node colors based on type and species
+V(g_sara)$node_colors <- ifelse(
+  V(g_sara)$type, "gray50",  # People
+  ifelse(
+    animal_species == "Cow", "#E69F00",
+    ifelse(
+      animal_species == "Pig", "#56B4E9",
+      ifelse(
+        animal_species == "Cat", "#009E73",
+        ifelse(
+          animal_species == "Dog",  "#F0E442",
+          "white"  # Default for unspecified animals
+        )
+      )
+    )
+  )
+)
+
+set.seed(123)
+
+# Plot using ggraph with bipartite layout
+sara_plot <- ggraph(g_sara) + 
+  geom_edge_link(color = "grey60", alpha=0.5) + 
+  geom_node_point(aes(fill = node_colors, size = degree), shape = 21, color = "black", stroke = 0.7) +  
+  scale_fill_identity() +
+  scale_size_continuous(range = c(0.5, max(node_degrees) * 0.5)) +
+  theme_void() +
+  theme(legend.position = "none")
+print(sara_plot)
+
+ggarrange(mand_plot, sara_plot, anda_plot, ncol=3, nrow=1, labels = c("a", "b", "c"))
+
+```
 
