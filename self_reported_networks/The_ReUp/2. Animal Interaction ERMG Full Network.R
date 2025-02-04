@@ -77,7 +77,7 @@ bipartite_graph_full_network_sna_list <- lapply(bipartite_graph_full_network_sna
   }
   vertices_with_na <- unique(vertices_with_na)
   vertices_with_na <- setdiff(vertices_with_na, 1:12) # excluding animal vertices
-  print(vertices_with_na)
+  print(length(vertices_with_na))
   # length(vertices_with_na)/igraph::with_vertex_() # FIND OUT % VERTICES BEING EXCLUDED
   delete.vertices(graph, vertices_with_na)
 })
