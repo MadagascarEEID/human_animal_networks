@@ -92,3 +92,83 @@ write.csv(vi_anda_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_network
 ```
 
 
+
+
+```{r}
+
+library(network)
+library(GGally)
+library(ggpubr)
+
+vi_mand_edge_m2_new <- vi_mand_edge_m2
+vi_mand_edge_m2_new$weight <- 1
+
+net_mand <- network(vi_mand_edge_m2_new , matrix.type = "edgelist", ignore.eval = FALSE, directed = FALSE)
+
+node_types <- c(rep("Animal", length(unique(vi_mand_edge_m2_new$id1))), rep("Human", length(unique(vi_mand_edge_m2_new$id2))))
+network.vertex.names(net_mand) <- c(unique(vi_mand_edge_m2_new$id1), unique(vi_mand_edge_m2_new$id2))
+set.vertex.attribute(net_mand, "Type", node_types)
+
+# Visualize the network
+mand_netplot <- ggnet2(
+  net_mand,
+  edge.size = 0.5,        # Use the 'weight' attribute for edge thickness
+  edge.color = "grey",
+  node.size = 3,
+  node.color = "Type",         # Color based on type
+  legend.size = 10,            # Legend size
+  palette = c("Animal" = "forestgreen", "Human" = "skyblue3"), 
+  legend.position = "right"    # Position of the legend
+)
+
+
+
+vi_anda_edge_m2_new <- vi_anda_edge_m2
+vi_anda_edge_m2_new$weight <- 1
+
+net_anda <- network(vi_anda_edge_m2_new , matrix.type = "edgelist", ignore.eval = FALSE, directed = FALSE)
+
+node_types <- c(rep("Animal", length(unique(vi_anda_edge_m2_new$id1))), rep("Human", length(unique(vi_anda_edge_m2_new$id2))))
+network.vertex.names(net_anda) <- c(unique(vi_anda_edge_m2_new$id1), unique(vi_anda_edge_m2_new$id2))
+set.vertex.attribute(net_anda, "Type", node_types)
+
+# Visualize the network
+anda_netplot <- ggnet2(
+  net_anda,
+  edge.size = 0.5,        # Use the 'weight' attribute for edge thickness
+  edge.color = "grey",
+  node.size = 3,
+  node.color = "Type",         # Color based on type
+  legend.size = 10,            # Legend size
+  palette = c("Animal" = "forestgreen", "Human" = "skyblue3"), 
+  legend.position = "right"    # Position of the legend
+)
+
+
+
+vi_sara_edge_m2_new <- vi_sara_edge_m2
+vi_sara_edge_m2_new$weight <- 1
+
+net_sara <- network(vi_sara_edge_m2_new , matrix.type = "edgelist", ignore.eval = FALSE, directed = FALSE)
+
+node_types <- c(rep("Animal", length(unique(vi_sara_edge_m2_new$id1))), rep("Human", length(unique(vi_sara_edge_m2_new$id2))))
+network.vertex.names(net_sara) <- c(unique(vi_sara_edge_m2_new$id1), unique(vi_sara_edge_m2_new$id2))
+set.vertex.attribute(net_sara, "Type", node_types)
+
+# Visualize the network
+sara_netplot <- ggnet2(
+  net_sara,
+  edge.size = 0.5,        # Use the 'weight' attribute for edge thickness
+  edge.color = "grey",
+  node.size = 3,
+  node.color = "Type",         # Color based on type
+  legend.size = 10,            # Legend size
+  palette = c("Animal" = "forestgreen", "Human" = "skyblue3"), 
+  legend.position = "right"    # Position of the legend
+)
+
+
+ggarrange(mand_netplot, sara_netplot, anda_netplot, common.legend = TRUE, ncol=3, nrow =1)
+
+```
+
