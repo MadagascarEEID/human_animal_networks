@@ -16,7 +16,6 @@ summary_df <- read.csv("~/Documents/GitHub/human_animal_networks/gps_networks/su
 
 ```
 
-
 ```{r Pool Effect Sizes}
 
 
@@ -79,7 +78,6 @@ meta_df$upper_ci_90 <- meta_df$Estimate + qnorm(0.95) * meta_df$SE
 
 
 ```
-
 
 ```{r Plot}
 

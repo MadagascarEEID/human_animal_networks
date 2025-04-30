@@ -56,9 +56,6 @@ vi_anda_edge_m <- vi_adj9 %>% filter(village =="Andatsakala") %>% select(id1, id
 ```
 
 ```{r}
-ggplot(data = vi_adj9[!is.na(vi_adj9$village),], aes(x=weight, color=village))+
-  geom_histogram()+
-  xlim(0,1)
 
 mean(vi_mand_edge_m$weight)
 median(vi_mand_edge_m$weight)
@@ -77,9 +74,9 @@ mean(na.omit(vi_adj9$weight))
 median(na.omit(vi_adj9$weight))
 
 
-vi_mand_edge_m2 <- vi_mand_edge_m %>% filter(weight >=4.7)
-vi_sara_edge_m2 <- vi_sara_edge_m %>% filter(weight >=6.25)
-vi_anda_edge_m2 <- vi_anda_edge_m %>% filter(weight >=4.22)
+vi_mand_edge_m2 <- vi_mand_edge_m %>% mutate(weight = ifelse(weight < 4.7, 0, weight))
+vi_sara_edge_m2 <- vi_sara_edge_m %>% mutate(weight = ifelse(weight < 6.25, 0, weight))
+vi_anda_edge_m2 <- vi_anda_edge_m %>% mutate(weight = ifelse(weight < 4.22, 0, weight))
 
 ```
 
@@ -89,86 +86,27 @@ write.csv(vi_mand_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_network
 write.csv(vi_sara_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara.csv")
 write.csv(vi_anda_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
 
-```
 
+vi_mand_edge <- read.csv( "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
 
+vi_sara_edge <- read.csv( "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara.csv")
 
+vi_anda_edge <- read.csv( "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
 
-```{r}
+vi_mand_edge$Village <- "M"
+vi_sara_edge$Village <- "S"
+vi_anda_edge$Village <- "A"
 
-library(network)
-library(GGally)
-library(ggpubr)
+edges_total <- rbind(vi_mand_edge, vi_sara_edge, vi_anda_edge)
 
-vi_mand_edge_m2_new <- vi_mand_edge_m2
-vi_mand_edge_m2_new$weight <- 1
-
-net_mand <- network(vi_mand_edge_m2_new , matrix.type = "edgelist", ignore.eval = FALSE, directed = FALSE)
-
-node_types <- c(rep("Animal", length(unique(vi_mand_edge_m2_new$id1))), rep("Human", length(unique(vi_mand_edge_m2_new$id2))))
-network.vertex.names(net_mand) <- c(unique(vi_mand_edge_m2_new$id1), unique(vi_mand_edge_m2_new$id2))
-set.vertex.attribute(net_mand, "Type", node_types)
-
-# Visualize the network
-mand_netplot <- ggnet2(
-  net_mand,
-  edge.size = 0.5,        # Use the 'weight' attribute for edge thickness
-  edge.color = "grey",
-  node.size = 3,
-  node.color = "Type",         # Color based on type
-  legend.size = 10,            # Legend size
-  palette = c("Animal" = "forestgreen", "Human" = "skyblue3"), 
-  legend.position = "right"    # Position of the legend
-)
-
-
-
-vi_anda_edge_m2_new <- vi_anda_edge_m2
-vi_anda_edge_m2_new$weight <- 1
-
-net_anda <- network(vi_anda_edge_m2_new , matrix.type = "edgelist", ignore.eval = FALSE, directed = FALSE)
-
-node_types <- c(rep("Animal", length(unique(vi_anda_edge_m2_new$id1))), rep("Human", length(unique(vi_anda_edge_m2_new$id2))))
-network.vertex.names(net_anda) <- c(unique(vi_anda_edge_m2_new$id1), unique(vi_anda_edge_m2_new$id2))
-set.vertex.attribute(net_anda, "Type", node_types)
-
-# Visualize the network
-anda_netplot <- ggnet2(
-  net_anda,
-  edge.size = 0.5,        # Use the 'weight' attribute for edge thickness
-  edge.color = "grey",
-  node.size = 3,
-  node.color = "Type",         # Color based on type
-  legend.size = 10,            # Legend size
-  palette = c("Animal" = "forestgreen", "Human" = "skyblue3"), 
-  legend.position = "right"    # Position of the legend
-)
-
-
-
-vi_sara_edge_m2_new <- vi_sara_edge_m2
-vi_sara_edge_m2_new$weight <- 1
-
-net_sara <- network(vi_sara_edge_m2_new , matrix.type = "edgelist", ignore.eval = FALSE, directed = FALSE)
-
-node_types <- c(rep("Animal", length(unique(vi_sara_edge_m2_new$id1))), rep("Human", length(unique(vi_sara_edge_m2_new$id2))))
-network.vertex.names(net_sara) <- c(unique(vi_sara_edge_m2_new$id1), unique(vi_sara_edge_m2_new$id2))
-set.vertex.attribute(net_sara, "Type", node_types)
-
-# Visualize the network
-sara_netplot <- ggnet2(
-  net_sara,
-  edge.size = 0.5,        # Use the 'weight' attribute for edge thickness
-  edge.color = "grey",
-  node.size = 3,
-  node.color = "Type",         # Color based on type
-  legend.size = 10,            # Legend size
-  palette = c("Animal" = "forestgreen", "Human" = "skyblue3"), 
-  legend.position = "right"    # Position of the legend
-)
-
-
-ggarrange(mand_netplot, sara_netplot, anda_netplot, common.legend = TRUE, ncol=3, nrow =1)
+ggplot(data= edges_total, aes(x=weight, color= Village, fill=Village))+
+  geom_density(alpha=0.1)+
+  theme_classic()+
+  ylab("Density")+
+  xlab("Volume Intersection")+
+  geom_vline(xintercept = 4.7, linetype= "dashed", color="green")+
+  geom_vline(xintercept = 6.25, linetype= "dashed", color="blue")+
+  geom_vline(xintercept = 4.22, linetype= "dashed", color="red")
 
 ```
 

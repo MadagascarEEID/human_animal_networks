@@ -1,0 +1,128 @@
+---
+title: "0_Correlation"
+output: html_document
+date: "2025-02-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse);library(network);library(igraph);library(sna);library(ggpubr)
+
+#Load data
+wd_path <- '~/Documents/GitHub/human_animal_networks/gps_networks/'
+getwd()
+setwd(wd_path)
+data_path <- 'outputs/'
+
+gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand.csv")) %>% select(-X)
+gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda.csv")) %>% select(-X)
+gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara.csv")) %>% select(-X)
+
+load("~/Downloads/node_degree_table.RData")
+
+degree_survey <- node_degree_table
+
+
+#Mandena
+gps_edge_mand2 <- as.data.frame(gps_edge_mand %>% pivot_wider(names_from = id1, values_from = weight))
+rownames(gps_edge_mand2) <- gps_edge_mand2$id2
+gps_edge_mand2 <- gps_edge_mand2 %>% select(-id2)
+gps_edge_mand3 <- as.matrix(gps_edge_mand2)
+gps_edge_mand3[is.na(gps_edge_mand3)] <- 0
+net_mand <-network::network(gps_edge_mand3,bipartite=T,matrix.type="bipartite")
+plot(net_mand)
+
+gps_edge_mand_binary <- gps_edge_mand3 
+gps_edge_mand_binary[gps_edge_mand_binary>0] <- 1
+mean(rowSums(gps_edge_mand_binary))
+
+#sarahandrano
+gps_edge_sara2 <- as.data.frame(gps_edge_sara %>% pivot_wider(names_from = id1, values_from = weight))
+rownames(gps_edge_sara2) <- gps_edge_sara2$id2
+gps_edge_sara2 <- gps_edge_sara2 %>% select(-id2)
+gps_edge_sara3 <- as.matrix(gps_edge_sara2)
+gps_edge_sara3[is.na(gps_edge_sara3)] <- 0
+net_sara <-network::network(gps_edge_sara3,bipartite=T,matrix.type="bipartite")
+plot(net_sara)
+
+gps_edge_sara_binary <- gps_edge_sara3 
+gps_edge_sara_binary[gps_edge_sara_binary>0] <- 1
+mean(rowSums(gps_edge_sara_binary))
+
+#Andatsakala
+gps_edge_anda2 <- as.data.frame(gps_edge_anda %>% pivot_wider(names_from = id1, values_from = weight))
+rownames(gps_edge_anda2) <- gps_edge_anda2$id2
+gps_edge_anda2 <- gps_edge_anda2 %>% select(-id2)
+gps_edge_anda3 <- as.matrix(gps_edge_anda2)
+gps_edge_anda3[is.na(gps_edge_anda3)] <- 0
+net_anda <-network::network(gps_edge_anda3,bipartite=T,matrix.type="bipartite")
+plot(net_anda)
+
+gps_edge_anda_binary <- gps_edge_anda3 
+gps_edge_anda_binary[gps_edge_anda_binary>0] <- 1
+mean(rowSums(gps_edge_anda_binary))
+
+
+mand_degree <- sna::degree(net_mand)
+names(mand_degree) <- network.vertex.names(net_mand)
+
+anda_degree <- sna::degree(net_anda)
+names(anda_degree) <- network.vertex.names(net_anda)
+
+sara_degree <- sna::degree(net_sara)
+names(sara_degree) <- network.vertex.names(net_sara)
+
+node_degrees <- data.frame(c(mand_degree, anda_degree, sara_degree))
+node_degrees$id <- rownames(node_degrees)
+colnames(node_degrees) <- c( "degree_spatial","name")
+
+```
+
+
+```{r}
+degree_survey <- node_degree_table %>% rename(degree_survey = degree)
+
+node_degree <- left_join(node_degrees, degree_survey, by ="name") %>% drop_na()
+
+survey_cor <- cor.test(node_degree$degree_spatial, node_degree$degree_survey)
+
+
+degree_plot1 <-  ggplot(data = node_degree, aes(x = degree_spatial, y = degree_survey)) +
+  geom_point()+
+  theme_classic()+
+  ylab("Self-Reported Degree")+
+  xlab("Spatial Degree")
+
+
+
+```
+
+
+```{r}
+load("~/Downloads/node_degree_table_restricted_animals.RData")
+
+degree_survey_restricted <- node_degree_table
+
+degree_survey_restricted <- degree_survey_restricted %>% rename(degree_restricted = degree)
+
+node_degree2 <- left_join(node_degrees, degree_survey_restricted, by ="name") %>% drop_na()
+
+survey_cor2 <- cor.test(node_degree2$degree_spatial, node_degree2$degree_restricted)
+
+
+degree_plot2 <-  ggplot(data = node_degree2, aes(x = degree_spatial, y = degree_restricted)) +
+  geom_point()+
+  theme_classic()+
+  ylab("Self-Reported Degree (Cattle, Pigs, Dogs, Cats)")+
+  xlab("Spatial Degree")
+
+
+ggarrange(degree_plot1, degree_plot2, labels = c("a", "b"))
+
+
+```
+
