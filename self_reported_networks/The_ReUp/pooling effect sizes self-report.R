@@ -189,6 +189,9 @@ ggarrange(people_plot_pooled,
 #plotting with village included ----
 
 summary_df_people<-summary_df |> 
+  mutate(Village = ifelse(Village == "Ampandrana", "A", 
+                          ifelse(Village == "Sarahandrano", "S", 
+                                 ifelse(Village == "Mandena", "M", Village)))) |>
   filter(!str_detect(Variable, "odent|ild|ges")) |> 
   mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
          upper_ci_95 = Estimate + 1.96 * `Std. Error`,
@@ -234,6 +237,9 @@ full_network_a<-ggplot(summary_df_people, aes(x = Estimate, y = Variable, color 
 
 
 summary_df_animal<-summary_df |> 
+  mutate(Village = ifelse(Village == "Ampandrana", "A", 
+                          ifelse(Village == "Sarahandrano", "S", 
+                                 ifelse(Village == "Mandena", "M", Village)))) |>
   filter(str_detect(Variable, "odent|ild")) |> 
   mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
          upper_ci_95 = Estimate + 1.96 * `Std. Error`,
@@ -482,13 +488,15 @@ ggarrange(people_plot_high_risk_pooled,
 
 #plotting with village included ----
 
-summary_df_high_risk_people<-summary_df_high_risk|> 
-  filter(!str_detect(Variable, "omestic|odent|ild|ges")) |> 
-  mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
-         upper_ci_95 = Estimate + 1.96 * `Std. Error`,
-         upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
-         lower_ci_90 = Estimate - 1.644854 * `Std. Error`,
-  ) 
+summary_df_high_risk_people <- summary_df_high_risk |>
+  mutate(Village = ifelse(Village == "Ampandrana", "A", 
+                          ifelse(Village == "Sarahandrano", "S", 
+                                 ifelse(Village == "Mandena", "M", Village)))) |>
+  filter(!str_detect(Variable, "omestic|odent|ild|ges")) |>
+  mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`, 
+         upper_ci_95 = Estimate + 1.96 * `Std. Error`, 
+         upper_ci_90 = Estimate + 1.644854 * `Std. Error`, 
+         lower_ci_90 = Estimate - 1.644854 * `Std. Error`)
 
 # Set factor levels for 'term' in summary_df_high_risk_no_cluster
 summary_df_high_risk_people$Variable <- factor(summary_df_high_risk_people$Variable, 
@@ -526,8 +534,10 @@ high_risk_network_a<-ggplot(summary_df_high_risk_people, aes(x = Estimate, y = V
 
 
 
-
 summary_df_high_risk_animal<-summary_df_high_risk |> 
+  mutate(Village = ifelse(Village == "Ampandrana", "A", 
+                          ifelse(Village == "Sarahandrano", "S", 
+                                 ifelse(Village == "Mandena", "M", Village)))) |>
   filter(str_detect(Variable, "omestic|odent|ild")) |> 
   mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
          upper_ci_95 = Estimate + 1.96 * `Std. Error`,
