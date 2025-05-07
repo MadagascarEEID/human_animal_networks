@@ -1,3 +1,5 @@
+
+## loading packages and files ----
 library(here)
 library(glmmTMB)
 
@@ -5,7 +7,11 @@ source(here("self_reported_networks/The_ReUp/1. Animal Interaction Bipartite Ful
 source(here("self_reported_networks/The_ReUp/3. Animal Interaction Bipartite High Risk.R"))
 source("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Loading Interaction Data.R")
 
-# get all unique animals
+# FULL NETWORKS ----
+
+### creating edge dfs----
+
+### get all unique animals
 animals <- c("rodents", "poultry", "dogs", "cats", "domestic_pigs", "goats_sheep",
              "cows", "wild_birds", "bush_pigs", "lemurs", "tenrecs", "carnivores")
 
@@ -64,6 +70,8 @@ full_network_df_sarahandrano<-full_network_df |>
 full_network_df_ampandrana<-full_network_df |> 
   filter(grepl("Ampand|Andats", village))
 
+### Running GLMMs ----
+
 model_mandena <- glmmTMB(edge ~
                           age+
                           gender+
@@ -118,7 +126,106 @@ AIC(model_ampandrana)
 AIC(model_sarahandrano)
 AIC(model_mandena)
 
+### pooling effect sizes from glmms ----
+
+
+summary_df <- rbind(as.data.frame(summary(model_ampandrana)$coefficients$cond),
+                    as.data.frame(summary(model_mandena)$coefficients$cond), 
+                    as.data.frame(summary(model_sarahandrano)$coefficients$cond)) |> 
+  rownames_to_column(var = "term") |>  # Move row names into a column named "term"
+  relocate(term, .before = Estimate) |>  # Place the "term" column before "Estimate"
+  dplyr::filter(!grepl("degree", term)) |> 
+  mutate(Village = c(rep("Ampandrana", 17), rep("Mandena", 17), rep("Sarahandrano", 17))) 
+
+
+summary_df$term <- rep(c("Edges", "Age", "Gender[Male]", "CGSOL", "HSOL",  "Vanilla Farmer",
+                         "Land Size", "Household Size", "School Level", "Rodents", "Wild Animals",
+                         "CGSOL:Rodents", "CGSOL:Wild Animals", "HSOL:Rodents", "HSOL:Wild Animals",
+                         "Vanilla:Rodents", "Vanilla:Wild Animals"), 3)
+
+summary_df<-summary_df |> 
+  rename("Variable" = term)
+
+library(metafor)
+pool_function <- function(variable){
+  
+  model_df <- summary_df %>% select(Estimate, `Std. Error`, Variable, Village) %>% filter(Variable==variable)
+  
+  metaanalysis_model <- rma(yi = model_df$Estimate,   
+                            sei = model_df$`Std. Error`, 
+                            method = "FE")
+  
+  output <- c(metaanalysis_model$beta , metaanalysis_model$ci.lb, metaanalysis_model$ci.ub, metaanalysis_model$pval, metaanalysis_model$se, nrow(model_df))
+  
+  return(output)
+  
+}
+
+name_age_pr <- pool_function(variable ="Age")
+name_sex_pr <- pool_function(variable ="Gender[Male]")
+name_vanilla_pr <- pool_function(variable ="Vanilla Farmer")
+name_ls_pr <- pool_function(variable ="Land Size")
+name_hs_pr <- pool_function(variable ="Household Size")
+name_sl_pr <- pool_function(variable ="School Level")
+name_cgsol_pr <- pool_function(variable ="CGSOL")
+name_hsol_pr <- pool_function(variable ="HSOL")
+name_rodents_pr <- pool_function(variable ="Rodents")
+name_wild_animals_pr <- pool_function(variable ="Wild Animals")
+
+name_hsol_rodents_pr <- pool_function(variable ="HSOL:Rodents")
+name_hsol_wild_animals_pr <- pool_function(variable ="HSOL:Wild Animals")
+
+name_vanilla_rodents_pr <- pool_function(variable ="Vanilla:Rodents")
+name_vanilla_wild_animals_pr <- pool_function(variable ="Vanilla:Wild Animals")
+
+name_cgsol_rodents_pr <- pool_function(variable ="CGSOL:Rodents")
+name_cgsol_wild_animals_pr <- pool_function(variable ="CGSOL:Wild Animals")
+
+meta_df <- as.data.frame(rbind(name_age_pr,
+                               name_sex_pr,
+                               name_vanilla_pr,
+                               name_ls_pr,
+                               name_hs_pr,
+                               name_sl_pr,
+                               name_cgsol_pr,
+                               name_hsol_pr,
+                               name_rodents_pr,
+                               name_wild_animals_pr,
+                               name_hsol_rodents_pr,
+                               name_hsol_wild_animals_pr,
+                               name_vanilla_rodents_pr,
+                               name_vanilla_wild_animals_pr,
+                               name_cgsol_rodents_pr,
+                               name_cgsol_wild_animals_pr
+))
+
+
+colnames(meta_df) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
+
+meta_df$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size",
+                      "Household Size", "School Level",  "CGSOL", "HSOL", "Rodent",
+                      "Wild Animal", "HSOL:Rodent","HSOL:Wild Animal",
+                      "Vanilla:Rodent","Vanilla:Wild Animal",
+                      "CGSOL:Rodent", "CGSOL:Wild Animal")
+
+
+
+meta_df$lower_ci <- meta_df$Estimate - 1.96 * meta_df$SE
+meta_df$upper_ci <- meta_df$Estimate + 1.96 * meta_df$SE
+
+meta_df$lower_ci_90 <- meta_df$Estimate - qnorm(0.95) * meta_df$SE
+meta_df$upper_ci_90 <- meta_df$Estimate + qnorm(0.95) * meta_df$SE
+
+rownames(meta_df) <- NULL
+
+meta_df <- meta_df |> 
+  relocate(Variable, .before = "Estimate")
+
+
+
 # HIGH RISK NETWORKS ----
+
+### creating edge dfs ----
 
 # get all unique animals
 animals <- c("rodents", "poultry", "dogs", "cats", "domestic_pigs", "goats_sheep",
@@ -184,7 +291,7 @@ high_risk_network_df_sarahandrano<-high_risk_network_df |>
 high_risk_network_df_ampandrana<-high_risk_network_df |> 
   filter(grepl("Ampand|Andats", village))
 
-## running models
+### running GLMMs ----
 
 model_mandena_high_risk <- glmmTMB(edge ~
                        age+
@@ -241,32 +348,123 @@ model_ampandrana_high_risk <- glmmTMB(edge ~
                         data = high_risk_network_df_ampandrana,
                         family = "binomial")
 
-# 
-# 
-# AIC(model_ampandrana_high_risk)
-# AIC(model_sarahandrano_high_risk)
-# AIC(model_mandena_high_risk)
+### pooling effect sizes from GLMMs -----
+
+pool_function_high_risk <- function(variable){
+  
+  model_df <- summary_df_high_risk %>% select(Estimate, `Std. Error`, Variable, Village) %>% filter(Variable==variable)
+  
+  metaanalysis_model <- rma(yi = model_df$Estimate,   
+                            sei = model_df$`Std. Error`, 
+                            method = "FE")
+  
+  output <- c(metaanalysis_model$beta , metaanalysis_model$ci.lb, metaanalysis_model$ci.ub, metaanalysis_model$pval, metaanalysis_model$se, nrow(model_df))
+  
+  return(output)
+  
+}
+
+summary_df_high_risk <- rbind(as.data.frame(summary(model_ampandrana_high_risk)$coefficients$cond ),
+                              as.data.frame(summary(model_mandena_high_risk)$coefficients$cond), 
+                              as.data.frame(summary(model_sarahandrano_high_risk)$coefficients$cond)) |> 
+  rownames_to_column(var = "term") |>  # Move row names into a column named "term"
+  relocate(term, .before = Estimate) |>  # Place the "term" column before "Estimate"
+  dplyr::filter(!grepl("degree", term)) |> 
+  mutate(Village = c(rep("Ampandrana", 21), rep("Mandena", 21), rep("Sarahandrano", 21))) 
 
 
-## comparing AICs to ERGMS ----
+summary_df_high_risk$term <- rep(c("Edges", "Age", "Gender[Male]", "CGSOL", "HSOL",  "Vanilla Farmer",
+                                   "Land Size", "Household Size", "School Level", "Domesticated (Uncommon)", "Rodents", "Wild Animals",
+                                   "CGSOL:Domesticated (Uncommon)","CGSOL:Rodents", "CGSOL:Wild Animals", 
+                                   "HSOL:Domesticated (Uncommon)", "HSOL:Rodents", "HSOL:Wild Animals",
+                                   "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodents", "Vanilla:Wild Animals"), 3)
+
+summary_df_high_risk<-summary_df_high_risk |> 
+  rename("Variable" = term)
+
+
+name_age_pr_high_risk <- pool_function_high_risk(variable ="Age")
+name_sex_pr_high_risk <- pool_function_high_risk(variable ="Gender[Male]")
+name_vanilla_pr_high_risk <- pool_function_high_risk(variable ="Vanilla Farmer")
+name_ls_pr_high_risk <- pool_function_high_risk(variable ="Land Size")
+name_hs_pr_high_risk <- pool_function_high_risk(variable ="Household Size")
+name_sl_pr_high_risk <- pool_function_high_risk(variable ="School Level")
+name_cgsol_pr_high_risk <- pool_function_high_risk(variable ="CGSOL")
+name_hsol_pr_high_risk <- pool_function_high_risk(variable ="HSOL")
+
+name_domesticated_uncommon_pr_high_risk <- pool_function_high_risk(variable = "Domesticated (Uncommon)")
+name_rodents_pr_high_risk <- pool_function_high_risk(variable ="Rodents")
+name_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="Wild Animals")
+
+name_hsol_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Domesticated (Uncommon)")
+name_hsol_rodents_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Rodents")
+name_hsol_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Wild Animals")
+
+name_vanilla_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Domesticated (Uncommon)")
+name_vanilla_rodents_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Rodents")
+name_vanilla_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Wild Animals")
+
+name_cgsol_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Domesticated (Uncommon)")
+name_cgsol_rodents_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Rodents")
+name_cgsol_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Wild Animals")
+
+meta_df_high_risk <- as.data.frame(rbind(name_age_pr_high_risk,
+                                         name_sex_pr_high_risk,
+                                         name_vanilla_pr_high_risk,
+                                         name_ls_pr_high_risk,
+                                         name_hs_pr_high_risk,
+                                         name_sl_pr_high_risk,
+                                         name_cgsol_pr_high_risk,
+                                         name_hsol_pr_high_risk,
+                                         name_domesticated_uncommon_pr_high_risk,
+                                         name_rodents_pr_high_risk,
+                                         name_wild_animals_pr_high_risk,
+                                         name_hsol_dom_uncommon_pr_high_risk,
+                                         name_hsol_rodents_pr_high_risk,
+                                         name_hsol_wild_animals_pr_high_risk,
+                                         name_vanilla_dom_uncommon_pr_high_risk,
+                                         name_vanilla_rodents_pr_high_risk,
+                                         name_vanilla_wild_animals_pr_high_risk,
+                                         name_cgsol_dom_uncommon_pr_high_risk,
+                                         name_cgsol_rodents_pr_high_risk,
+                                         name_cgsol_wild_animals_pr_high_risk
+))
+
+
+colnames(meta_df_high_risk) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
+
+meta_df_high_risk$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size",
+                                "Household Size", "School Level",  "CGSOL", "HSOL", "Domesticated (Uncommon)",
+                                "Rodent", "Wild Animal",  "HSOL:Domesticated (Uncommon)", "HSOL:Rodent","HSOL:Wild Animal",
+                                "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodent","Vanilla:Wild Animal",
+                                "CGSOL:Domesticated (Uncommon)", "CGSOL:Rodent", "CGSOL:Wild Animal")
+
+
+
+meta_df_high_risk$lower_ci <- meta_df_high_risk$Estimate - 1.96 * meta_df_high_risk$SE
+meta_df_high_risk$upper_ci <- meta_df_high_risk$Estimate + 1.96 * meta_df_high_risk$SE
+
+meta_df_high_risk$lower_ci_90 <- meta_df_high_risk$Estimate - qnorm(0.95) * meta_df_high_risk$SE
+meta_df_high_risk$upper_ci_90 <- meta_df_high_risk$Estimate + qnorm(0.95) * meta_df_high_risk$SE
+
+rownames(meta_df_high_risk) <- NULL
+
+meta_df_high_risk <- meta_df_high_risk |> 
+  relocate(Variable, .before = "Estimate")
+
+
+# Loading ERMG results ----
+
 load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala.RData")
 load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena.RData")
 load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano.RData")
 load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala_high_risk2.RData")
 load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena_high_risk3.RData")
 load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano_high_risk2.RData")
-# 
-# AIC(model_ampandrana, ergm_ampandrana_andatsakala)
-# AIC(model_mandena, ergm_mandena) # weird
-# AIC(model_sarahandrano, ergm_sarahandrano)
-# 
-# 
-# AIC(model_ampandrana_high_risk, ergm_ampandrana_andatsakala_high_risk) 
-# AIC(model_mandena_high_risk, ergm_mandena_high_risk_lemurs)
-# AIC(model_sarahandrano_high_risk, ergm_sarahandrano_high_risk)
 
 
-## comparing model results...ERGM vs GLMM ----
+
+## comparing ERGM vs GLMM estimates ----
 summary(model_ampandrana)
 summary(ergm_ampandrana_andatsakala)
 
@@ -285,42 +483,88 @@ summary(ergm_mandena_high_risk_lemurs)
 summary(model_sarahandrano_high_risk)
 summary(ergm_sarahandrano_high_risk)
 
+## AUC ----
 library(ROCR)
+library(sna)
 
-# Simulate networks from the ERGM
-sim_nets <- simulate(ergm_sarahandrano, nsim = 1000, output = "network")
+compute_auc_ergm <- function(ergm_model, nsim = 500) { # simulating 500 networks
+  sim_nets <- simulate(ergm_model, nsim = nsim, output = "network", verbose = FALSE)
+  obs_mat <- as.matrix.network(ergm_model$network)
+  pred_probs <- Reduce("+", lapply(sim_nets, function(net) as.matrix.network(net))) / nsim
+  
+  # Flatten to vectors
+  obs_vec <- as.vector(obs_mat)
+  pred_vec <- as.vector(pred_probs)
+  
+  # Remove self-loops
+  n <- nrow(obs_mat)
+  diag_index <- seq(1, length(obs_vec), by = n + 1)
+  obs_vec <- obs_vec[-diag_index]
+  pred_vec <- pred_vec[-diag_index]
+  
+  pred <- prediction(pred_vec, obs_vec)
+  perf <- performance(pred, "auc")
+  return(perf@y.values[[1]])
+}
 
-# Get the observed adjacency matrix
-obs_mat <- as.matrix.network(ergm_sarahandrano$network)
+compute_auc_glmm <- function(glmm_model) {
+  pred_probs <- predict(glmm_model, type = "response", re.form = NULL)
+  observed <- glmm_model$frame$edge
+  pred <- prediction(pred_probs, observed)
+  perf <- performance(pred, "auc")
+  return(perf@y.values[[1]])
+}
 
-# Get predicted probabilities (average across simulations)
-predicted_probs <- Reduce("+", lapply(sim_nets, function(net) as.matrix.network(net))) / length(sim_nets)
 
-# Flatten matrices to vectors
-obs_vec <- as.vector(obs_mat)
-pred_vec <- as.vector(predicted_probs)
+auc_results <- data.frame(
+  Site = character(),
+  AUC_ERGM = numeric(),
+  AUC_GLMM = numeric(),
+  stringsAsFactors = FALSE
+)
 
-# Remove self-loops if applicable
-n <- nrow(obs_mat)
-diag_index <- seq(1, length(obs_vec), by = n + 1)
-obs_vec <- obs_vec[-diag_index]
-pred_vec <- pred_vec[-diag_index]
+# List of village names and models
+site_models <- list(
+  "Ampandrana (Full Network)" = list(glmm = model_ampandrana, ergm = ergm_ampandrana_andatsakala),
+  "Mandena (Full Network)" = list(glmm = model_mandena, ergm = ergm_mandena),
+  "Sarahandrano (Full Network)" = list(glmm = model_sarahandrano, ergm = ergm_sarahandrano),
+  "Ampandrana (High Risk)" = list(glmm = model_ampandrana_high_risk, ergm = ergm_ampandrana_andatsakala_high_risk),
+  "Mandena (High Risk)" = list(glmm = model_mandena_high_risk, ergm = ergm_mandena_high_risk_lemurs),
+  "Sarahandrano (High Risk)" = list(glmm = model_sarahandrano_high_risk, ergm = ergm_sarahandrano_high_risk)
+)
 
-# Use ROCR to compute AUC
-pred <- prediction(pred_vec, obs_vec)
-perf <- performance(pred, "auc")
-auc_value <- perf@y.values[[1]]
-auc_value
 
-# auc for glmm
-pred_probs <- predict(model_sarahandrano, type = "response", re.form = NULL)
+auc_results <- data.frame(
+  Village = character(),
+  AUC_ERGM = numeric(),
+  AUC_GLMM = numeric(),
+  stringsAsFactors = FALSE
+)
 
-# Observed binary outcome
-observed <- model_sarahandrano$frame$edge
+# List of village names and models
+village_models <- list(
+  "Ampandrana (Full Network)" = list(glmm = model_ampandrana, ergm = ergm_ampandrana_andatsakala),
+  "Mandena (Full Network)" = list(glmm = model_mandena, ergm = ergm_mandena),
+  "Sarahandrano (Full Network)" = list(glmm = model_sarahandrano, ergm = ergm_sarahandrano),
+  "Ampandrana (High Risk)" = list(glmm = model_ampandrana_high_risk, ergm = ergm_ampandrana_andatsakala_high_risk),
+  "Mandena (High Risk)" = list(glmm = model_mandena_high_risk, ergm = ergm_mandena_high_risk_lemurs),
+  "Sarahandrano (High Risk)" = list(glmm = model_sarahandrano_high_risk, ergm = ergm_sarahandrano_high_risk)
+)
 
-# Create ROCR prediction object
-pred <- prediction(pred_probs, observed)
-perf <- performance(pred, "auc")
-auc_value <- perf@y.values[[1]]
-auc_value[[1]]
+# Loop through each village
+for (village in names(village_models)) {
+  cat("Processing:", village, "\n")
+  ergm_model <- village_models[[village]]$ergm
+  glmm_model <- village_models[[village]]$glmm
+  
+  auc_ergm <- compute_auc_ergm(ergm_model)
+  auc_glmm <- compute_auc_glmm(glmm_model)
+  
+  auc_results <- rbind(auc_results, data.frame(
+    Village = village,
+    AUC_ERGM = auc_ergm,
+    AUC_GLMM = auc_glmm
+  ))
+}
 
+View(auc_results)
