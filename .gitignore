@@ -57,3 +57,6 @@ self_reported_networks/ERGM Results.docx
 *.png
 *.jpeg
 $.jpg
+*.RData
+edge_list_ampandrana_andatsakala_full
+*.zip

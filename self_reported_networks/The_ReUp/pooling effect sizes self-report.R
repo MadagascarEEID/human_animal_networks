@@ -285,7 +285,7 @@ ggarrange(full_network_a,
 # HIGH RISK NETWORKS ----
 load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala_high_risk2.RData")
 load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano_high_risk2.RData")
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena_high_risk2.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena_high_risk3.RData")
 
 
 pool_function_high_risk <- function(variable){
@@ -303,7 +303,7 @@ pool_function_high_risk <- function(variable){
 }
 
 summary_df_high_risk <- rbind(as.data.frame(summary(ergm_ampandrana_andatsakala_high_risk)$coefficients ),
-                    as.data.frame(summary(ergm_mandena_high_risk)$coefficients), 
+                    as.data.frame(summary(ergm_mandena_high_risk_lemurs)$coefficients), 
                     as.data.frame(summary(ergm_sarahandrano_high_risk)$coefficients)) |> 
   rownames_to_column(var = "term") |>  # Move row names into a column named "term"
   relocate(term, .before = Estimate) |>  # Place the "term" column before "Estimate"

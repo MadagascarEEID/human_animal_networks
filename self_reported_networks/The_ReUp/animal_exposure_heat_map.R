@@ -75,7 +75,7 @@ heatmap_data <- heatmap_data %>%
 # Create the heatmap
 ggplot(heatmap_data, aes(x = animal, y = interaction_type, fill = count)) +
   geom_tile(color = NA) +  # Removes gridlines between tiles
-  scale_fill_gradient(low = "lightblue", high = "blue", name = "Count") +
+  scale_fill_viridis(name = "Count", begin = .7, end = 0) +
   geom_text(aes(label = count), color = "white", size = 4) +  # Add count labels
   labs(
     title = "Heatmap of Animal Interaction Counts",

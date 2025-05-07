@@ -176,6 +176,60 @@ V(bipartite_graph_full_network_sarahandrano)$animal_category <- ifelse(
   ifelse(V(bipartite_graph_full_network_sarahandrano)$animal_name %in% wild_animals, "wild", 
          ifelse(V(bipartite_graph_full_network_sarahandrano)$animal_name %in% rodent_animals, "rodent", 
                 NA )))
-
-
-
+### CREATING NODE DEGREE TABLES TO DO CORR TESTS WITH SPATIAL NETOWRKS
+# 
+# bipartite_graph_full_network_ampandrana_andatsakala_for_compare <- subgraph(graph=bipartite_graph_full_network_ampandrana_andatsakala,
+#                                                                             vids=which(grepl("E.|cats|cows|dogs|domestic_pigs", 
+#                                                                                              V(bipartite_graph_full_network_ampandrana_andatsakala)$name)))
+# 
+# V(bipartite_graph_full_network_ampandrana_andatsakala_for_compare)$degree<-igraph::degree(bipartite_graph_full_network_ampandrana_andatsakala_for_compare)
+# 
+# node_degree_table_ampandrana_adatsakala <- data.frame(
+#   name = V(bipartite_graph_full_network_ampandrana_andatsakala_for_compare)$name,
+#   degree = V(bipartite_graph_full_network_ampandrana_andatsakala_for_compare)$degree
+# ) |> 
+#   mutate(village = "ampandrana_andatsakala") |> 
+#   filter(grepl("E.", name))
+# 
+# bipartite_graph_full_network_mandena_for_compare <- subgraph(graph=bipartite_graph_full_network_mandena,
+#                                                                             vids=which(grepl("A.|cats|cows|dogs|domestic_pigs", 
+#                                                                                              V(bipartite_graph_full_network_mandena)$name)))
+# 
+# V(bipartite_graph_full_network_mandena_for_compare)$degree<-igraph::degree(bipartite_graph_full_network_mandena_for_compare)
+# 
+# 
+# node_degree_table_mandena <- data.frame(
+#   name = V(bipartite_graph_full_network_mandena_for_compare)$name,
+#   degree = V(bipartite_graph_full_network_mandena_for_compare)$degree
+# ) |> 
+#   mutate(village = "mandena") |> 
+#   filter(grepl("A.", name))
+# 
+# 
+# # 
+# # bipartite_graph_full_network_sarahandrano_for_compare <- subgraph(graph=bipartite_graph_full_network_sarahandrano,
+# #                                                              vids=which(grepl("D.|cats|cows|dogs|domestic_pigs", 
+# #                                                                               V(bipartite_graph_full_network_sarahandrano)$name)))
+# # 
+# # V(bipartite_graph_full_network_sarahandrano_for_compare)$degree<-igraph::degree(bipartite_graph_full_network_sarahandrano_for_compare)
+# # 
+# # 
+# # node_degree_table_sarahandrano <- data.frame(
+# #   name = V(bipartite_graph_full_network_sarahandrano_for_compare)$name,
+# #   degree = V(bipartite_graph_full_network_sarahandrano_for_compare)$degree
+# # ) |> 
+# #   mutate(village = "sarahandrano") |> 
+# #   filter(grepl("D.", name))
+# # 
+# # node_degree_table <- bind_rows(
+# #   node_degree_table_ampandrana_adatsakala,
+# #   node_degree_table_mandena,
+# #   node_degree_table_sarahandrano
+# # )
+# # 
+# # # save(node_degree_table, file = "node_degree_table_restricted_animals.RData") 
+# # # 
+# # # View(node_degree_table)
+# 
+# 
+# 

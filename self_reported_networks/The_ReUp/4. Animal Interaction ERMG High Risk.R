@@ -17,16 +17,10 @@ bipartite_graphs_high_risk <- list(
 library(igraph)
 
 for (i in seq_along(bipartite_graphs_high_risk)) {
-  if (i == 2){ # deleting lemur vertex from Mandena bipartite graph bc it's an isolate!
-    bipartite_graphs_high_risk[[i]] <- induced_subgraph(bipartite_graphs_high_risk[[i]], 
-                                                        vids = V(bipartite_graphs_high_risk[[i]])[V(bipartite_graphs_high_risk[[i]])$animal_name != "lemurs"])
-  }
-  
-  else 
-  {
+
     bipartite_graphs_high_risk[[i]] <- bipartite_graphs_high_risk[[i]]
   }
-}
+
 
 # detach("package:igraph", unload = TRUE)
 library(statnet)
@@ -170,7 +164,9 @@ ergm:::plot.gof(gof(ergm_mandena_high_risk))
 # vif.ergm(ergm_mandena_high_risk)
 summary(ergm_mandena_high_risk)
 
-save(ergm_mandena_high_risk, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_mandena_high_risk2.RData")
+ergm_mandena_high_risk_lemurs <- ergm_mandena_high_risk
+
+save(ergm_mandena_high_risk_lemurs, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_mandena_high_risk3.RData")
 
 
 
@@ -204,3 +200,6 @@ vif.ergm(ergm_sarahandrano_high_risk)
 summary(ergm_sarahandrano_high_risk)
 
 save(ergm_sarahandrano_high_risk, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_sarahandrano_high_risk2.RData")
+
+
+
