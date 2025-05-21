@@ -4,7 +4,7 @@ Organizing analyses of GPS and self-reported animal interaction networks
 
 ## self_reported_networks
 
-This folder contains Lev's code for generating bipartite networks based on respondents' self-reported animal interactions. All code is in progress.
+This folder contains Lev's code for generating bipartite networks based on respondents' self-reported animal interactions. 
 
 ### Archive
 
