@@ -36,8 +36,16 @@ This folder contains up-to-date code for finalized analyses.
 
 -   **Descriptive Network Stats.R** Generates descriptive statistics for full and high-risk networks.
 
--   **pooling effect sizes self-report.R** meta regressions to pool village-specific ERGMs into aggregated models
+-   **pooling effect sizes self-report.R** meta regressions to pool village-specific ERGMs into aggregated models; coef plots
 
 -   **as_glms.R** Recreates network analyses as generalized linear mixed-effect models; compares fits of ERGMs vs. GLMMs with area under curve calculations.
+
+#### /Images
+
+-  **animal_exposure_heat_map.R** creates heat map of self-reported animal interactions for ms
+
+-  **figures_emory.R** visualizations for Charlie's presentation at Emory in January 2025
+
+-  **network_figures_take_2.R** network visualizations for ms
 
 
