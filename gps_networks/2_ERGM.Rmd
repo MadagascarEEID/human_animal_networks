@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 #Load packages
-library(tidyverse); library(scales);library(bipartite);library(ggpubr);library(ergm);library(network);library(ggnet)
+library(tidyverse); library(scales);library(bipartite);library(ggpubr);library(ergm);library(network);library(ggnet);library(ergMargins)
 
 #Load data
 wd_path <- '~/Documents/GitHub/human_animal_networks/gps_networks/'
@@ -78,49 +78,21 @@ mean(rowSums(gps_edge_anda_binary))
 
 ```
 
-```{r Projection}
-
-met_mand_uni <- bipartite_projection(graph_from_incidence_matrix(gps_edge_mand3))$proj2
-plot(met_mand_uni)
-
-met_sara_uni <- bipartite_projection(graph_from_incidence_matrix(gps_edge_sara3))$proj2
-plot(met_sara_uni)
-
-met_anda_uni <- bipartite_projection(graph_from_incidence_matrix(gps_edge_anda3))$proj2
-plot(met_anda_uni)
-
-V(met_mand_uni)$species <- animal_dat$species[match(V(met_mand_uni)$name, animal_dat$id1)]
-V(met_sara_uni)$species <- animal_dat$species[match(V(met_sara_uni)$name, animal_dat$id1)]
-V(met_anda_uni)$species <- animal_dat$species[match(V(met_anda_uni)$name, animal_dat$id1)]
-
-species_colors <- c("Cat" = "maroon3", "Cow" = "cyan3", "Dog" = "seagreen", "Pig" = "mediumpurple3")
-
-ggnet_mand <- ggnet2(met_mand_uni, size=4, color="species", edge.size=0.1, palette = species_colors)
-ggnet_sara <-ggnet2(met_sara_uni, size=3, color="species", edge.size=0.1, palette = species_colors)
-ggnet_anda <- ggnet2(met_anda_uni, size=3, color="species", edge.size=0.1, palette = species_colors)
-
-ecount(met_mand_uni) / (vcount(met_mand_uni) * (vcount(met_mand_uni) - 1) / 2)
-ecount(met_sara_uni) / (vcount(met_sara_uni) * (vcount(met_sara_uni) - 1) / 2)
-ecount(met_mand_uni) / (vcount(met_mand_uni) * (vcount(met_mand_uni) - 1) / 2)
-
-ggarrange(ggnet_mand, ggnet_sara, ggnet_anda, common.legend = TRUE)
-
-```
-
 ```{r Assign vertex attributes: Mandena}
+
 
 metadata_mand <- metadata %>% filter(village=="Mandena")
 
 network.vertex.names(net_mand)
-people_names <- as.data.frame(network.vertex.names(net_mand)[1:180])
+people_names <- as.data.frame(network.vertex.names(net_mand)[1:186])
 colnames(people_names) <- "People"
-animal_names <- as.data.frame(network.vertex.names(net_mand)[181:244])
+animal_names <- as.data.frame(network.vertex.names(net_mand)[187:257])
 colnames(animal_names) <- "Animals"
 allnames <- as.data.frame(network.vertex.names(net_mand))
 colnames(allnames) <- "Names"
 
 #Mode
-type <- c(rep("People", 180), c(rep("Animals", 68)))
+type <- c(rep("People", 186), c(rep("Animals", 71)))
 names(type) <- net_mand %v% 'vertex_names'
 network::set.vertex.attribute(net_mand,"type",type)
 
@@ -130,7 +102,7 @@ names(age) <- metadata_mand$social_netid
 age <- age[ net_mand %v% 'vertex.names' ]
 network::set.vertex.attribute(net_mand,"age",age)
 network::get.vertex.attribute(net_mand,attrname="age")
-#missing for #92
+#missing for #94
 
 #Gender
 gender <- metadata_mand$gender
@@ -166,7 +138,7 @@ names(land) <- metadata_mand$social_netid
 land <- land[ net_mand %v% 'vertex.names' ]
 network::set.vertex.attribute(net_mand,"land",land)
 network::get.vertex.attribute(net_mand,attrname="land")
-#Missing #78, 145, 162, 167, 172
+#Missing #80, 149, 166, 171, 176
 
 #Household size
 size <- scale(metadata_mand$household_size)
@@ -174,7 +146,7 @@ names(size) <- metadata_mand$social_netid
 size <- size[ net_mand %v% 'vertex.names' ]
 network::set.vertex.attribute(net_mand,"size",size)
 network::get.vertex.attribute(net_mand,attrname="size")
-#Missing #94
+#Missing #96
 
 #school
 school <- scale(metadata_mand$school_level)
@@ -207,8 +179,22 @@ network::set.vertex.attribute(net_mand,"animal_species",animal_species)
 network::get.vertex.attribute(net_mand,attrname="animal_species")
 
 
+degree <- sna::degree(net_mand)
+network::set.vertex.attribute(net_mand,"degree",degree)
+network::get.vertex.attribute(net_mand,attrname="degree")
+
+color <- animal_dat$species
+color[color=="Cow"] <- "#E69F00"
+color[color=="Pig"] <- "#56B4E9"
+color[color=="Cat"] <- "#009E73"
+color[color=="Dog"] <- "#F0E442"
+color <- c(rep("grey50",179), color)
+names(color) <- net_mand %v% 'vertex_names'
+network::set.vertex.attribute(net_mand,"color",color)
+network::get.vertex.attribute(net_mand,attrname="color")
+
 #Remove nodes that have missing values (3% of nodes)
-nodes_to_remove <- c(92, 78, 145, 162, 167, 172, 94)
+nodes_to_remove <- c(94, 96, 80, 149, 166, 171, 176)
 net_mand <- network::delete.vertices(net_mand, nodes_to_remove)
 
 ```
@@ -218,15 +204,15 @@ net_mand <- network::delete.vertices(net_mand, nodes_to_remove)
 metadata_sara <- metadata %>% filter(village=="Sarahandrano")
 
 network.vertex.names(net_sara)
-people_names <- as.data.frame(network.vertex.names(net_sara)[1:339])
+people_names <- as.data.frame(network.vertex.names(net_sara)[1:343])
 colnames(people_names) <- "People"
-animal_names <- as.data.frame(network.vertex.names(net_sara)[340:455])
+animal_names <- as.data.frame(network.vertex.names(net_sara)[344:464])
 colnames(animal_names) <- "Animals"
 allnames <- as.data.frame(network.vertex.names(net_sara))
 colnames(allnames) <- "Names"
 
 #Mode
-type <- c(rep("People", 339), c(rep("Animals", 119)))
+type <- c(rep("People", 343), c(rep("Animals", 122)))
 names(type) <- net_sara %v% 'vertex_names'
 network::set.vertex.attribute(net_sara,"type",type)
 
@@ -236,7 +222,7 @@ names(age) <- metadata_sara$social_netid
 age <- age[ net_sara %v% 'vertex.names' ]
 network::set.vertex.attribute(net_sara,"age",age)
 network::get.vertex.attribute(net_sara,attrname="age")
-#missing for #267
+#missing for #270
 
 #Gender
 gender <- metadata_sara$gender
@@ -272,7 +258,7 @@ names(land) <- metadata_sara$social_netid
 land <- land[ net_sara %v% 'vertex.names' ]
 network::set.vertex.attribute(net_sara,"land",land)
 network::get.vertex.attribute(net_sara,attrname="land")
-#Missing #11, 74, 177, 188, 200, 240, 248, 302, 327
+#Missing #11, 74, 179, 190, 202, 205, 243, 251, 305, 330, 331
 
 #Household size
 size <- scale(metadata_sara$household_size)
@@ -312,12 +298,25 @@ animal_species <- animal_species[ net_sara %v% 'vertex.names' ]
 network::set.vertex.attribute(net_sara,"animal_species",animal_species)
 network::get.vertex.attribute(net_sara,attrname="animal_species")
 
+degree <- sna::degree(net_sara)
+network::set.vertex.attribute(net_sara,"degree",degree)
+network::get.vertex.attribute(net_sara,attrname="degree")
+
+color <- animal_dat$species
+color[color=="Cow"] <- "#E69F00"
+color[color=="Pig"] <- "#56B4E9"
+color[color=="Cat"] <- "#009E73"
+color[color=="Dog"] <- "#F0E442"
+color <- c(rep("grey50",391), color)
+names(color) <- net_sara %v% 'vertex_names'
+network::set.vertex.attribute(net_sara,"color",color)
+network::get.vertex.attribute(net_sara,attrname="color")
 
 #Remove nodes that have missing values (2.6% of nodes)
-nodes_to_remove_sara <- c(267,11, 73, 177, 188, 200, 240, 248, 302, 327, 354, 409)
+nodes_to_remove_sara <- c(270, 11, 74, 179, 190, 202, 205, 243, 251, 305, 330, 331, 463)
 net_sara <- network::delete.vertices(net_sara, nodes_to_remove_sara)
 
-net_sara <- network::delete.vertices(net_sara, 398)
+#net_sara <- network::delete.vertices(net_sara, 398)
 
 ```
 
@@ -326,15 +325,15 @@ net_sara <- network::delete.vertices(net_sara, 398)
 metadata_anda <- metadata %>% filter(village=="Andatsakala"| village=="Ampandrana")
 
 network.vertex.names(net_anda)
-people_names <- as.data.frame(network.vertex.names(net_anda)[1:411])
+people_names <- as.data.frame(network.vertex.names(net_anda)[1:416])
 colnames(people_names) <- "People"
-animal_names <- as.data.frame(network.vertex.names(net_anda)[412:546])
+animal_names <- as.data.frame(network.vertex.names(net_anda)[417:554])
 colnames(animal_names) <- "Animals"
 allnames <- as.data.frame(network.vertex.names(net_anda))
 colnames(allnames) <- "Names"
 
 #Mode
-type <- c(rep("People", 411), c(rep("Animals", 135)))
+type <- c(rep("People", 416), c(rep("Animals", 138)))
 names(type) <- net_anda %v% 'vertex_names'
 network::set.vertex.attribute(net_anda,"type",type)
 
@@ -379,7 +378,7 @@ names(land) <- metadata_anda$social_netid
 land <- land[ net_anda %v% 'vertex.names' ]
 network::set.vertex.attribute(net_anda,"land",land)
 network::get.vertex.attribute(net_anda,attrname="land")
-#Missing #14, 42, 70, 75, 107, 118,192, 203,  237, 262, 293, 256, 391, 398, 401, 409
+#Missing #35, 40, 102, 107, 119, 126, 309, 320, 337, 362, 364, 370, 385, 391, 398, 404
 
 #Household size
 size <- scale(metadata_anda$household_size)
@@ -394,7 +393,7 @@ names(school) <- metadata_anda$social_netid
 school <- school[ net_anda %v% 'vertex.names' ]
 network::set.vertex.attribute(net_anda,"school",school)
 network::get.vertex.attribute(net_anda,attrname="school")
-#Missing #297, 301, 358, 395, 397, 405
+#Missing #179, 216, 397, 406, 408, 411
 
 #Animal species
 species <- animal_dat$species
@@ -407,7 +406,6 @@ network::get.vertex.attribute(net_anda,attrname="species")
 
 #Animal sex
 sex <- animal_dat$sex
-animal_dat$sex[animal_dat$sex=="unknown"] <- "Male" ## CHANGE THIS
 names(sex) <- animal_dat$id1
 sex <- sex[ net_anda %v% 'vertex.names' ]
 network::set.vertex.attribute(net_anda,"sex",sex)
@@ -421,13 +419,36 @@ network::set.vertex.attribute(net_anda,"animal_species",animal_species)
 network::get.vertex.attribute(net_anda,attrname="animal_species")
 
 
+degree <- sna::degree(net_anda)
+network::set.vertex.attribute(net_anda,"degree",degree)
+network::get.vertex.attribute(net_anda,attrname="degree")
+
+
+
+
+color <- animal_dat$species
+color[color=="Cow"] <- "#E69F00"
+color[color=="Pig"] <- "#56B4E9"
+color[color=="Cat"] <- "#009E73"
+color[color=="Dog"] <- "#F0E442"
+color <- c(rep("grey50",391), color)
+names(color) <- net_anda %v% 'vertex_names'
+network::set.vertex.attribute(net_anda,"color",color)
+network::get.vertex.attribute(net_anda,attrname="color")
+
+
+
 #Remove nodes that have missing values (5% of nodes)
-nodes_to_remove_anda <- c(14, 42, 70, 75, 107, 118,192, 203,  237, 262, 293, 256, 391, 398, 401, 409, 297, 301, 358, 395, 397, 356, 405)
+nodes_to_remove_anda <- c(35, 40, 102, 107, 119, 126, 309, 320, 337, 362, 364, 370, 385, 391, 398, 404, 179, 216, 397, 406, 408, 411, 416)
 net_anda <- network::delete.vertices(net_anda, nodes_to_remove_anda)
+
+net_anda <- network::delete.vertices(net_anda, c(371,386))
 
 ```
 
 ```{r ERGM}
+set.seed(123)
+
 ergm_mandena <- ergm(net_mand ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
@@ -446,9 +467,8 @@ ergm_sara <- ergm(net_sara ~ edges + b1cov("age")+b1factor("gender")+b1factor("v
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+ b1degree(2)+ b1degree(1)+ b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9), 
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+ b1degree(2)+ b1degree(1)+ b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11), 
                  control = control.ergm(seed = 123))
-
 
 sara_summary <-summary(ergm_sara)
 sara_summary
@@ -457,13 +477,12 @@ plot(gof_sara)
 max(vif.ergm(ergm_sara))
 
 
-
 ergm_anda <- ergm(net_anda ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
                       b1factor("vanilla"):b2factor("species")+ b2factor("sex")+ b1degree(2)+ b1degree(1)+
-                      + b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11)+ b1degree(12)+ b1degree(13)+ b1degree(14)+ b1degree(15)+ b1degree(16)+ b1degree(23), 
+                      + b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11)+ b1degree(12)+ b1degree(13)+ b1degree(14)+ b1degree(15)+ b1degree(16)+b1degree(22)+b1degree(23), 
                  control = control.ergm(seed = 123))
 
 anda_summary <-summary(ergm_anda)
@@ -474,7 +493,6 @@ max(vif.ergm(ergm_anda))
 
 ```
 
-
 ```{r ERGM}
 
 
@@ -482,14 +500,14 @@ summary_df <- rbind(as.data.frame(mandena_summary$coefficients)[2:14,], as.data.
 #summary_df <- summary_df[-42,] #CHANGE THIS
 
 summary_df$Village <- c(rep("Mandena", 13), rep("Sarahandrano", 13), rep("Andatsakala", 13))
-summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "CGSOL", "HSOL", "Zebu", "CGSOL:Zebu", "HSOL:Zebu", "Vanilla:Zebu", "Animal Sex[Male]"))
-summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "CGSOL", "HSOL", "Animal Sex[Male]",  "CGSOL:Zebu", "HSOL:Zebu", "Vanilla:Zebu","Zebu"))
+summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Zebu", "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu", "Animal Sex[Male]"))
+summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "Commercial Goods", "House Materials", "Animal Sex[Male]",  "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu","Zebu"))
 summary_df$lower_ci <- summary_df$Estimate - 1.96* summary_df$`Std. Error`
 summary_df$upper_ci <- summary_df$Estimate + 1.96* summary_df$`Std. Error`
 summary_df$lower_ci_90 <- summary_df$Estimate -qnorm(0.95)* summary_df$`Std. Error`
 summary_df$upper_ci_90 <- summary_df$Estimate + qnorm(0.95)* summary_df$`Std. Error`
 
-summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Zebu", Variable !="HSOL:Zebu", Variable !="CGSOL:Zebu", Variable !="Vanilla:Zebu", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
+summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Zebu", Variable !="House Materials:Zebu", Variable !="Commercial Goods:Zebu", Variable !="Vanilla:Zebu", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
 
 
  ggplot(summary_df, aes(x = Estimate, y = Variable, color = Village)) +
@@ -547,7 +565,7 @@ fig_2 <-ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Sig
 
 
 
-summary_df_filtered3 <- summary_df %>% filter(Variable =="Zebu"| Variable =="HSOL:Zebu"| Variable =="CGSOL:Zebu"| Variable =="Vanilla:Zebu"| Variable =="Animal Sex[Male]")
+summary_df_filtered3 <- summary_df %>% filter(Variable =="Zebu"| Variable =="House Materials:Zebu"| Variable =="Commercial Goods:Zebu"| Variable =="Vanilla:Zebu"| Variable =="Animal Sex[Male]")
 
 summary_df_filtered3$Significance <- summary_df_filtered3$`Pr(>|z|)`
 summary_df_filtered3$Significance[summary_df_filtered3$`Pr(>|z|)`<0.05] <- "Significant"
@@ -573,6 +591,10 @@ fig_3 <-ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Sig
 ggarrange(fig_2, fig_3, common.legend = TRUE)
 
 
+
+summary_df_filtered2$Village[summary_df_filtered2$Village=="Mandena"] <- "M"
+summary_df_filtered2$Village[summary_df_filtered2$Village=="Sarahandrano"] <- "S"
+summary_df_filtered2$Village[summary_df_filtered2$Village=="Andatsakala"] <- "A"
 
 
 people_plot <- ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Village)) + 
@@ -604,6 +626,12 @@ people_plot <- ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, colo
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
 
+summary_df_filtered3$Village[summary_df_filtered3$Village=="Mandena"] <- "M"
+summary_df_filtered3$Village[summary_df_filtered3$Village=="Sarahandrano"] <- "S"
+summary_df_filtered3$Village[summary_df_filtered3$Village=="Andatsakala"] <- "A"
+
+#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="CGSOL:Zebu"] <- "Commercial Goods:Zebu"
+#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="HSOL:Zebu"] <- "House Materials:Zebu"
 
 animals_plot <- ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Village)) + 
   # Points for estimated effects with dodge position
@@ -643,168 +671,114 @@ write.csv(summary_df, "summary_df_spatial.csv")
 ```
 
 ```{r}
-library(igraph)
-library(ggraph)
-library(ggplot2)
 library(network)
-library(ggpubr)
+library(sna)  # For degree calculation
 
-# Extract edges from network object
-edges_anda <- as.matrix.network.edgelist(net_anda)
-
-# Extract node attributes
-node_types <- network::get.vertex.attribute(net_anda, "type")  # Bipartite type
-animal_species <- network::get.vertex.attribute(net_anda, "animal_species")
-
-# Create igraph object manually
-g_anda <- graph_from_edgelist(edges_anda, directed = FALSE)
-
-# Assign bipartite attribute
-V(g_anda)$type <- node_types == "People"  # Ensure logical bipartite TRUE/FALSE
-
-# Compute node degrees
-node_degrees <- degree(g_anda) / 10
-V(g_anda)$degree <- node_degrees  # Assign degree as a vertex attribute
-
-# Define node colors based on type and species
-V(g_anda)$node_colors <- ifelse(
-  V(g_anda)$type, "gray50",  # People
-  ifelse(
-    animal_species == "Cow", "#E69F00",
-    ifelse(
-      animal_species == "Pig", "#56B4E9",
-      ifelse(
-        animal_species == "Cat", "#009E73",
-        ifelse(
-          animal_species == "Dog",  "#F0E442",
-          "white"  # Default for unspecified animals
-        )
-      )
-    )
-  )
-)
-
-set.seed(123)
-
-# Plot using ggraph with bipartite layout
-anda_plot <- ggraph(g_anda) + 
-  geom_edge_link(color = "grey60", alpha=0.5) + 
-  geom_node_point(aes(fill = node_colors, size = degree), shape = 21, color = "black", stroke = 0.7) +  # Black outline
-  scale_fill_identity() +
-  scale_size_continuous(range = c(0.5, max(node_degrees) * 0.5)) +
-  theme_void() +
-  theme(legend.position = "none")
-print(anda_plot)
+# Set up a 1-row, 3-column layout and remove margins
+par(mfrow = c(1, 3), mar = c(2, 0, 2, 0))  # Top margin for labels
 
 
+# --- Plot net_anda ---
+node_colors <- net_anda %v% "color"
+node_sizes <- net_anda %v% "degree"
+scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
+
+plot(net_anda, 
+     vertex.col = node_colors, 
+     vertex.cex = scaled_sizes, 
+     edge.col = adjustcolor("grey60", alpha.f = 0.5),
+     displayisolates = TRUE)
+mtext("A", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
 
 
-# Extract edges from network object
-edges_mand <- as.matrix.network.edgelist(net_mand)
+# --- Plot net_mand ---
+node_colors <- net_mand %v% "color"
+node_sizes <- net_mand %v% "degree"
+scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
 
-# Extract node attributes
-node_types <- network::get.vertex.attribute(net_mand, "type")  # Bipartite type
-animal_species <- network::get.vertex.attribute(net_mand, "animal_species")
+plot(net_mand, 
+     vertex.col = node_colors, 
+     vertex.cex = scaled_sizes, 
+     edge.col = adjustcolor("grey60", alpha.f = 0.5),
+     displayisolates = TRUE)
+mtext("M", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
 
-# Create igraph object manually
-g_mand <- graph_from_edgelist(edges_mand, directed = FALSE)
+# --- Plot net_sara ---
+node_colors <- net_sara %v% "color"
+node_sizes <- net_sara %v% "degree"
+scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
 
-# Assign bipartite attribute
-V(g_mand)$type <- node_types == "People"  # Ensure logical bipartite TRUE/FALSE
+plot(net_sara, 
+     vertex.col = node_colors, 
+     vertex.cex = scaled_sizes, 
+     edge.col = adjustcolor("grey60", alpha.f = 0.5),
+     displayisolates = TRUE)
+mtext("S", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
 
-# Compute node degrees
-node_degrees <- degree(g_mand) / 10
-V(g_mand)$degree <- node_degrees  # Assign degree as a vertex attribute
+```
 
-# Define node colors based on type and species
-V(g_mand)$node_colors <- ifelse(
-  V(g_mand)$type, "gray50",  # People
-  ifelse(
-    animal_species == "Cow", "#E69F00",
-    ifelse(
-      animal_species == "Pig", "#56B4E9",
-      ifelse(
-        animal_species == "Cat", "#009E73",
-        ifelse(
-          animal_species == "Dog",  "#F0E442",
-          "white"  # Default for unspecified animals
-        )
-      )
-    )
-  )
-)
+```{r}
+library(network)
+library(sna)  # For degree calculation
 
-set.seed(123)
+# Set up a 1-row, 3-column layout and remove margins
+par(mfrow = c(1, 3), mar = c(0, 0, 0, 0))
 
-# Plot using ggraph with bipartite layout
-mand_plot <- ggraph(g_mand) + 
-  geom_edge_link(color = "grey60", alpha=0.5) + 
-  geom_node_point(aes(fill = node_colors, size = degree), shape = 21, color = "black", stroke = 0.7) +  # Black outline
-  scale_fill_identity() +
-  scale_size_continuous(range = c(0.5, max(node_degrees) * 0.5)) +
-  theme_void() +
-  theme(legend.position = "none")
-print(mand_plot)
+# --- Plot net_mand ---
+node_colors <- net_mand %v% "color"
+node_sizes <- net_mand %v% "degree"
+scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
 
+plot(net_mand, 
+     vertex.col = node_colors, 
+     vertex.cex = scaled_sizes, 
+     edge.col = adjustcolor("grey60", alpha.f = 0.5),
+     displayisolates = TRUE)
 
+# --- Plot net_anda ---
+node_colors <- net_anda %v% "color"
+node_sizes <- net_anda %v% "degree"
+scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
 
+plot(net_anda, 
+     vertex.col = node_colors, 
+     vertex.cex = scaled_sizes, 
+     edge.col = adjustcolor("grey60", alpha.f = 0.5),
+     displayisolates = TRUE)
 
+# --- Plot net_sara ---
+node_colors <- net_sara %v% "color"
+node_sizes <- net_sara %v% "degree"
+scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
 
-# Extract edges from network object
-edges_sara <- as.matrix.network.edgelist(net_sara)
+plot(net_sara, 
+     vertex.col = node_colors, 
+     vertex.cex = scaled_sizes, 
+     edge.col = adjustcolor("grey60", alpha.f = 0.5),
+     displayisolates = TRUE)
 
-# Extract node attributes
-node_types <- network::get.vertex.attribute(net_sara, "type")  # Bipartite type
-animal_species <- network::get.vertex.attribute(net_sara, "animal_species")
+```
 
-# Create igraph object manually
-g_sara <- graph_from_edgelist(edges_sara, directed = FALSE)
+```{r}
 
-# Assign bipartite attribute
-V(g_sara)$type <- node_types == "People"  # Ensure logical bipartite TRUE/FALSE
+library(sna)
 
-# Compute node degrees
-node_degrees <- degree(g_sara) / 10
-V(g_sara)$degree <- node_degrees  # Assign degree as a vertex attribute
+net_anda
 
-# Define node colors based on type and species
-V(g_sara)$node_colors <- ifelse(
-  V(g_sara)$type, "gray50",  # People
-  ifelse(
-    animal_species == "Cow", "#E69F00",
-    ifelse(
-      animal_species == "Pig", "#56B4E9",
-      ifelse(
-        animal_species == "Cat", "#009E73",
-        ifelse(
-          animal_species == "Dog",  "#F0E442",
-          "white"  # Default for unspecified animals
-        )
-      )
-    )
-  )
-)
+mean((sna::degree(net_anda))[1:331])
+sd((sna::degree(net_anda))[1:331])
 
-set.seed(123)
+mean((sna::degree(net_anda))[332:451])
+sd((sna::degree(net_anda))[332:451])
 
-# Plot using ggraph with bipartite layout
-sara_plot <- ggraph(g_sara) + 
-  geom_edge_link(color = "grey60", alpha=0.5) + 
-  geom_node_point(aes(fill = node_colors, size = degree), shape = 21, color = "black", stroke = 0.7) +  
-  scale_fill_identity() +
-  scale_size_continuous(range = c(0.5, max(node_degrees) * 0.5)) +
-  theme_void() +
-  theme(legend.position = "none")
-print(sara_plot)
+num_edges <- network.edgecount(net_anda)  # Number of edges
+num_nodes <- network.size(net_anda)       # Number of nodes
+max_edges <- (num_nodes * (num_nodes - 1)) / 2  # Max edges for undirected
 
-spatial_net_fig <- ggarrange(mand_plot, sara_plot, anda_plot, ncol=3, nrow=1, labels = c("a", "b", "c"))
-
-spatial_net_fig <- c(mand_plot, sara_plot, anda_plot)
+# Edge density calculation
+edge_density <- num_edges / max_edges
 
 
-save(mand_plot, file = "spatial_net_fig_mand.RData")
-save(anda_plot, file = "spatial_net_fig_anda.RData")
-save(sara_plot, file = "spatial_net_fig_sara.RData")
-
+plot(net_anda)
 ```
 
