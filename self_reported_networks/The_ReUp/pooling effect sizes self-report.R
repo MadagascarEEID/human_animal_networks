@@ -81,10 +81,10 @@ meta_df <- as.data.frame(rbind(name_age_pr,
 colnames(meta_df) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
 
 meta_df$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size",
-                      "Household Size", "School Level",  "CGSOL", "HSOL", "Rodent",
-                      "Wild Animal", "HSOL:Rodent","HSOL:Wild Animal",
+                      "Household Size", "School Level",  "Commercial Goods", "House Materials", "Rodent",
+                      "Wild Animal", "House Materials:Rodent","House Materials:Wild Animal",
                        "Vanilla:Rodent","Vanilla:Wild Animal",
-                      "CGSOL:Rodent", "CGSOL:Wild Animal")
+                      "Commercial Goods:Rodent", "Commercial Goods:Wild Animal")
 
 
 
@@ -98,7 +98,6 @@ rownames(meta_df) <- NULL
 
 meta_df <- meta_df |> 
   relocate(Variable, .before = "Estimate")
-View(meta_df)
 
 # plots metafor-----
 
@@ -109,7 +108,7 @@ meta_df_people <- meta_df |>
 meta_df_people$Variable <- factor(
   meta_df_people$Variable,
   levels = rev(c(
-    "HSOL", "CGSOL", "Vanilla Farmer", "Land Size", 
+    "House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size", 
     "Household Size", "School Level", "Gender[Man]", "Age"
   ))
 )
@@ -121,8 +120,8 @@ meta_df_animal$Variable <- factor(
   meta_df_animal$Variable,
   levels = rev(c(
     "Rodent", "Wild Animal", "Vanilla:Rodent","Vanilla:Wild Animal", 
-    "HSOL:Rodent","HSOL:Wild Animal",
-    "CGSOL:Rodent", "CGSOL:Wild Animal"
+    "House Materials:Rodent","House Materials:Wild Animal",
+    "Commercial Goods:Rodent", "Commercial Goods:Wild Animal"
   ))
 )
 
@@ -188,20 +187,26 @@ ggarrange(people_plot_pooled,
 
 #plotting with village included ----
 
-summary_df_people<-summary_df |> 
-  mutate(Village = ifelse(Village == "Ampandrana", "A", 
-                          ifelse(Village == "Sarahandrano", "S", 
-                                 ifelse(Village == "Mandena", "M", Village)))) |>
+summary_df_people <- summary_df |> 
+  mutate(
+    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Village = case_when(
+      Village == "Ampandrana" ~ "A",
+      Village == "Sarahandrano" ~ "S",
+      Village == "Mandena" ~ "M",
+      TRUE ~ Village
+    )
+  ) |>
   filter(!str_detect(Variable, "odent|ild|ges")) |> 
-  mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
-         upper_ci_95 = Estimate + 1.96 * `Std. Error`,
-         upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
-         lower_ci_90 = Estimate - 1.644854 * `Std. Error`,
-  ) 
+  mutate(
+    lower_ci_95 = Estimate - 1.96 * `Std. Error`,
+    upper_ci_95 = Estimate + 1.96 * `Std. Error`,
+    upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
+    lower_ci_90 = Estimate - 1.644854 * `Std. Error`
+  )
 
-# Set factor levels for 'term' in summary_df_high_risk_no_cluster
 summary_df_people$Variable <- factor(summary_df_people$Variable, 
-                                     levels = rev(c("HSOL", "CGSOL", "Vanilla Farmer", "Land Size", 
+                                     levels = rev(c("House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size", 
                                                     "Household Size", "School Level", "Gender[Male]", "Age")))
 
 
@@ -236,24 +241,28 @@ full_network_a<-ggplot(summary_df_people, aes(x = Estimate, y = Variable, color 
 
 
 
-summary_df_animal<-summary_df |> 
-  mutate(Village = ifelse(Village == "Ampandrana", "A", 
-                          ifelse(Village == "Sarahandrano", "S", 
-                                 ifelse(Village == "Mandena", "M", Village)))) |>
+summary_df_animal <- summary_df |> 
+  mutate(
+    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Village = case_when(
+      Village == "Ampandrana" ~ "A",
+      Village == "Sarahandrano" ~ "S",
+      Village == "Mandena" ~ "M",
+      TRUE ~ Village
+    )
+  ) |>
   filter(str_detect(Variable, "odent|ild")) |> 
-  mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
-         upper_ci_95 = Estimate + 1.96 * `Std. Error`,
-         upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
-         lower_ci_90 = Estimate - 1.644854 * `Std. Error`,
-  ) 
+  mutate(
+    lower_ci_95 = Estimate - 1.96 * `Std. Error`,
+    upper_ci_95 = Estimate + 1.96 * `Std. Error`,
+    upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
+    lower_ci_90 = Estimate - 1.644854 * `Std. Error`
+  )
 
-# Set factor levels for 'term' in summary_df_high_risk_no_cluster
 summary_df_animal$Variable <- factor(summary_df_animal$Variable, 
-                                     levels = rev(c("Rodents", "Wild Animals", "Vanilla:Rodents","Vanilla:Wild Animals", 
-                                                    "HSOL:Rodents","HSOL:Wild Animals",
-                                                    "CGSOL:Rodents", "CGSOL:Wild Animals")))
-
-
+                                     levels = rev(c("Rodents", "Wild Animals", "Vanilla:Rodents", "Vanilla:Wild Animals", 
+                                                    "House Materials:Rodents", "House Materials:Wild Animals",
+                                                    "Commercial Goods:Rodents", "Commercial Goods:Wild Animals")))
 full_network_b<-ggplot(summary_df_animal, aes(x = Estimate, y = Variable, color = Village)) + 
   # Points for estimated effects with dodge position
   geom_point(position = position_dodge(width = 0.5), size = 3) + 
@@ -378,10 +387,12 @@ meta_df_high_risk <- as.data.frame(rbind(name_age_pr_high_risk,
 colnames(meta_df_high_risk) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
 
 meta_df_high_risk$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size",
-                      "Household Size", "School Level",  "CGSOL", "HSOL", "Domesticated (Uncommon)",
-                      "Rodent", "Wild Animal",  "HSOL:Domesticated (Uncommon)", "HSOL:Rodent","HSOL:Wild Animal",
+                      "Household Size", "School Level",  "Commercial Goods", "House Materials", "Domesticated (Uncommon)",
+                      "Rodent", "Wild Animal",  "House Materials:Domesticated (Uncommon)", 
+                      "House Materials:Rodent","House Materials:Wild Animal",
                       "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodent","Vanilla:Wild Animal",
-                      "CGSOL:Domesticated (Uncommon)", "CGSOL:Rodent", "CGSOL:Wild Animal")
+                      "Commercial Goods:Domesticated (Uncommon)", "Commercial Goods:Rodent", 
+                      "Commercial Goods:Wild Animal")
 
 
 
@@ -395,7 +406,6 @@ rownames(meta_df_high_risk) <- NULL
 
 meta_df_high_risk <- meta_df_high_risk |> 
   relocate(Variable, .before = "Estimate")
-View(meta_df_high_risk)
 
 
 # plots metafor-----
@@ -407,7 +417,7 @@ meta_df_high_risk_people <- meta_df_high_risk |>
 meta_df_high_risk_people$Variable <- factor(
   meta_df_high_risk_people$Variable,
   levels = rev(c(
-    "HSOL", "CGSOL", "Vanilla Farmer", "Land Size", 
+    "House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size", 
     "Household Size", "School Level", "Gender[Man]", "Age"
   ))
 )
@@ -419,10 +429,9 @@ meta_df_high_risk_animal$Variable <- factor(
   meta_df_high_risk_animal$Variable,
   levels = rev(c(
     "Domesticated (Uncommon)", "Rodent", "Wild Animal", 
-    
     "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodent","Vanilla:Wild Animal", 
-    "HSOL:Domesticated (Uncommon)", "HSOL:Rodent","HSOL:Wild Animal",
-    "CGSOL:Domesticated (Uncommon)", "CGSOL:Rodent", "CGSOL:Wild Animal"
+    "House Materials:Domesticated (Uncommon)", "House Materials:Rodent","House Materials:Wild Animal",
+    "Commercial Goods:Domesticated (Uncommon)", "Commercial Goods:Rodent", "Commercial Goods:Wild Animal"
   ))
 )
 
@@ -487,103 +496,97 @@ ggarrange(people_plot_high_risk_pooled,
 
 
 #plotting with village included ----
-
 summary_df_high_risk_people <- summary_df_high_risk |>
-  mutate(Village = ifelse(Village == "Ampandrana", "A", 
-                          ifelse(Village == "Sarahandrano", "S", 
-                                 ifelse(Village == "Mandena", "M", Village)))) |>
+  mutate(
+    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Village = case_when(
+      Village == "Ampandrana" ~ "A",
+      Village == "Sarahandrano" ~ "S",
+      Village == "Mandena" ~ "M",
+      TRUE ~ Village
+    )
+  ) |>
   filter(!str_detect(Variable, "omestic|odent|ild|ges")) |>
-  mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`, 
-         upper_ci_95 = Estimate + 1.96 * `Std. Error`, 
-         upper_ci_90 = Estimate + 1.644854 * `Std. Error`, 
-         lower_ci_90 = Estimate - 1.644854 * `Std. Error`)
+  mutate(
+    lower_ci_95 = Estimate - 1.96 * `Std. Error`,
+    upper_ci_95 = Estimate + 1.96 * `Std. Error`,
+    upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
+    lower_ci_90 = Estimate - 1.644854 * `Std. Error`
+  )
 
-# Set factor levels for 'term' in summary_df_high_risk_no_cluster
-summary_df_high_risk_people$Variable <- factor(summary_df_high_risk_people$Variable, 
-                                     levels = rev(c("HSOL", "CGSOL", "Vanilla Farmer", "Land Size", 
-                                                    "Household Size", "School Level", "Gender[Male]", "Age")))
+summary_df_high_risk_people$Variable <- factor(summary_df_high_risk_people$Variable,
+                                               levels = rev(c("House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size",
+                                                              "Household Size", "School Level", "Gender[Male]", "Age")))
 
-
-high_risk_network_a<-ggplot(summary_df_high_risk_people, aes(x = Estimate, y = Variable, color = Village)) + 
-  # Points for estimated effects with dodge position
-  geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  # 95% CI as thinner linerange
+high_risk_network_a <- ggplot(summary_df_high_risk_people, aes(x = Estimate, y = Variable, color = Village)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
   geom_linerange(
     aes(xmin = lower_ci_95, xmax = upper_ci_95),
     position = position_dodge(0.5), linewidth = 0.4
   ) +
-  # 90% CI as thicker linerange
   geom_linerange(
     aes(xmin = lower_ci_90, xmax = upper_ci_90),
     position = position_dodge(0.5), linewidth = 1.2
-  ) + 
-  # Classic theme
+  ) +
   theme_classic() +
-  # Labels
-  labs(x = "Estimated Effect", y = NULL) + 
-  # Colorblind-friendly palette from viridis
-  scale_color_viridis_d(option = "D", end = 0.8) +  
-  # Theme adjustments
+  labs(x = "Estimated Effect", y = NULL) +
+  scale_color_viridis_d(option = "D", end = 0.8) +
   theme(
-    legend.position = "top", 
+    legend.position = "top",
     axis.title.y = element_text(size = 12),
     axis.title.x = element_text(size = 12)
   ) +
-  # Reference line at zero
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
 
+# ---- High Risk Animal ----
+summary_df_high_risk_animal <- summary_df_high_risk |>
+  mutate(
+    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Village = case_when(
+      Village == "Ampandrana" ~ "A",
+      Village == "Sarahandrano" ~ "S",
+      Village == "Mandena" ~ "M",
+      TRUE ~ Village
+    )
+  ) |>
+  filter(str_detect(Variable, "omestic|odent|ild")) |>
+  mutate(
+    lower_ci_95 = Estimate - 1.96 * `Std. Error`,
+    upper_ci_95 = Estimate + 1.96 * `Std. Error`,
+    upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
+    lower_ci_90 = Estimate - 1.644854 * `Std. Error`
+  )
 
-summary_df_high_risk_animal<-summary_df_high_risk |> 
-  mutate(Village = ifelse(Village == "Ampandrana", "A", 
-                          ifelse(Village == "Sarahandrano", "S", 
-                                 ifelse(Village == "Mandena", "M", Village)))) |>
-  filter(str_detect(Variable, "omestic|odent|ild")) |> 
-  mutate(lower_ci_95 = Estimate - 1.96 * `Std. Error`,
-         upper_ci_95 = Estimate + 1.96 * `Std. Error`,
-         upper_ci_90 = Estimate + 1.644854 * `Std. Error`,
-         lower_ci_90 = Estimate - 1.644854 * `Std. Error`,
-  ) 
+summary_df_high_risk_animal$Variable <- factor(summary_df_high_risk_animal$Variable,
+                                               levels = rev(c("Domesticated (Uncommon)", "Rodents", "Wild Animals",
+                                                              "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodents", "Vanilla:Wild Animals",
+                                                              "House Materials:Domesticated (Uncommon)", "House Materials:Rodents", "House Materials:Wild Animals",
+                                                              "Commercial Goods:Domesticated (Uncommon)", "Commercial Goods:Rodents", "Commercial Goods:Wild Animals")))
 
-# Set factor levels for 'term' in summary_df_high_risk_no_cluster
-summary_df_high_risk_animal$Variable <- factor(summary_df_high_risk_animal$Variable, 
-                                     levels = rev(c("Domesticated (Uncommon)", "Rodents", "Wild Animals", 
-                                                    "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodents","Vanilla:Wild Animals", 
-                                                    "HSOL:Domesticated (Uncommon)", "HSOL:Rodents","HSOL:Wild Animals",
-                                                    "CGSOL:Domesticated (Uncommon)",  "CGSOL:Rodents", "CGSOL:Wild Animals")))
-
-
-high_risk_network_b<-ggplot(summary_df_high_risk_animal, aes(x = Estimate, y = Variable, color = Village)) + 
-  # Points for estimated effects with dodge position
-  geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  # 95% CI as thinner linerange
+high_risk_network_b <- ggplot(summary_df_high_risk_animal, aes(x = Estimate, y = Variable, color = Village)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
   geom_linerange(
     aes(xmin = lower_ci_95, xmax = upper_ci_95),
     position = position_dodge(0.5), linewidth = 0.4
   ) +
-  # 90% CI as thicker linerange
   geom_linerange(
     aes(xmin = lower_ci_90, xmax = upper_ci_90),
     position = position_dodge(0.5), linewidth = 1.2
-  ) + 
-  # Classic theme
+  ) +
   theme_classic() +
-  # Labels
-  labs(x = "Estimated Effect", y = NULL) + 
-  # Colorblind-friendly palette from viridis
-  scale_color_viridis_d(option = "D", end = 0.8) +  
-  # Theme adjustments
+  labs(x = "Estimated Effect", y = NULL) +
+  scale_color_viridis_d(option = "D", end = 0.8) +
   theme(
-    legend.position = "top", 
+    legend.position = "top",
     axis.title.y = element_text(size = 12),
     axis.title.x = element_text(size = 12)
   ) +
-  # Reference line at zero
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
-
+# ---- Combine Plots ----
 ggarrange(high_risk_network_a,
-          high_risk_network_b, 
+          high_risk_network_b,
           labels = c("a", "b"), common.legend = TRUE)
 
 
