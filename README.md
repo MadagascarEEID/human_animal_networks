@@ -2,6 +2,23 @@
 
 Organizing analyses of GPS and self-reported animal interaction networks
 
+
+## gps_reported_networks
+
+This folder contains Camille's code for generating bipartite networks based on GPS-based contact between people and animals. 
+
+-   **0_Correlation.Rmd** contains exploratory analysis to investigate correlations between degree in spatial and self-reported networks. 
+
+-   **1_NetworkConstruction.Rmd** constructs edge lists for binary bipartite networks between people and domestic animals, according to their GPS overlaps
+
+-   **2_ERGM.Rmd** ERGM for odds of edge formation between a human and a domestic animal individual in the spatial bipartite networks. 
+
+-   **3. EffectSizePooling.R** pools effect sizes across villages for the ERGM coefficients. 
+
+-   **outputs** network edge lists and ERGM results.
+
+
+
 ## self_reported_networks
 
 This folder contains Lev's code for generating bipartite networks based on respondents' self-reported animal interactions. 

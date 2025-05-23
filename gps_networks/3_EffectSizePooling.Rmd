@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse);library(metafor);library(ggpubr)
 
-summary_df <- read.csv("~/Documents/GitHub/human_animal_networks/gps_networks/summary_df_spatial.csv")
+summary_df <- read.csv("~/Documents/GitHub/human_animal_networks/gps_networks/outputs/summary_df_spatial.csv")
 
 ```
 
@@ -65,7 +65,7 @@ meta_df <- as.data.frame(rbind(name_age_pr,
 
 colnames(meta_df) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
 
-meta_df$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "CGSOL", "HSOL", "Cattle", "HSOL:Cattle", "Vanilla:Cattle", "CGSOL:Cattle", "Animal Sex[Male]")
+meta_df$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Cattle", "House Materials:Cattle", "Vanilla:Cattle", "Commercial Goods:Cattle", "Animal Sex[Male]")
 
 
 
@@ -81,9 +81,9 @@ meta_df$upper_ci_90 <- meta_df$Estimate + qnorm(0.95) * meta_df$SE
 
 ```{r Plot}
 
-meta_df_filtered <- meta_df %>% filter(Variable !="Edges", Variable !="Cattle", Variable !="HSOL:Cattle", Variable !="CGSOL:Cattle", Variable !="Vanilla:Cattle", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
+meta_df_filtered <- meta_df %>% filter(Variable !="Edges", Variable !="Cattle", Variable !="House Materials:Cattle", Variable !="Commercial Goods:Cattle", Variable !="Vanilla:Cattle", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
 
-meta_df_filtered$Variable <- factor(meta_df_filtered$Variable, levels = c("Age", "Gender[Man]", "School Level", "Household Size", "Land Size", "Vanilla Farmer", "CGSOL", "HSOL"))
+meta_df_filtered$Variable <- factor(meta_df_filtered$Variable, levels = c("Age", "Gender[Man]", "School Level", "Household Size", "Land Size", "Vanilla Farmer", "Commercial Goods", "House Materials"))
 
 people_plot_pooled <- ggplot(meta_df_filtered, aes(x = Estimate, y = Variable)) + 
   # Points for estimated effects with dodge position
@@ -111,8 +111,8 @@ people_plot_pooled <- ggplot(meta_df_filtered, aes(x = Estimate, y = Variable)) 
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
 
-meta_df_filtered2 <- meta_df %>% filter(Variable =="Cattle"| Variable =="HSOL:Cattle"| Variable =="CGSOL:Cattle"| Variable =="Vanilla:Cattle"| Variable =="Animal Sex[Male]")
-meta_df_filtered2$Variable <- factor(meta_df_filtered2$Variable, levels = c("Animal Sex[Male]", "CGSOL:Cattle", "HSOL:Cattle", "Vanilla:Cattle", "Cattle"))
+meta_df_filtered2 <- meta_df %>% filter(Variable =="Cattle"| Variable =="House Materials:Cattle"| Variable =="Commercial Goods:Cattle"| Variable =="Vanilla:Cattle"| Variable =="Animal Sex[Male]")
+meta_df_filtered2$Variable <- factor(meta_df_filtered2$Variable, levels = c("Animal Sex[Male]", "Commercial Goods:Cattle", "House Materials:Cattle", "Vanilla:Cattle", "Cattle"))
 
 animals_plot_pooled <- ggplot(meta_df_filtered2, aes(x = Estimate, y = Variable)) + 
   # Points for estimated effects with dodge position
