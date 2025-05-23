@@ -15,7 +15,7 @@ This folder contains Camille's code for generating bipartite networks based on G
 
 -   **3. EffectSizePooling.R** pools effect sizes across villages for the ERGM coefficients. 
 
--   **outputs** network edge lists and ERGM results.
+-   **outputs** contains network edge lists and ERGM results.
 
 
 
