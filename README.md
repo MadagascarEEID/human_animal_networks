@@ -55,7 +55,7 @@ This folder contains up-to-date code for finalized analyses.
 
 -   **pooling effect sizes self-report.R** meta regressions to pool village-specific ERGMs into aggregated models; coef plots
 
--   **as_glms.R** Recreates network analyses as generalized linear mixed-effect models; compares fits of ERGMs vs. GLMMs with area under curve calculations.
+-   **as_glms.R** Recreates network analyses as generalized linear mixed-effect models; compares fits of ERGMs vs. GLMMs with area under curve calculations; generates de-identified edge lists
 
 #### /Images
 
@@ -64,5 +64,9 @@ This folder contains up-to-date code for finalized analyses.
 -  **figures_emory.R** visualizations for Charlie's presentation at Emory in January 2025
 
 -  **network_figures_take_2.R** network visualizations for ms
+
+#### /Results
+Contains all edge lists and ERGM outputs
+
 
 
