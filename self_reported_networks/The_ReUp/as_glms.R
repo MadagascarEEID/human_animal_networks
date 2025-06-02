@@ -70,6 +70,27 @@ full_network_df_sarahandrano<-full_network_df |>
 full_network_df_ampandrana<-full_network_df |> 
   filter(grepl("Ampand|Andats", village))
 
+
+### edge lists for pub ----
+# full_edge_df_village_m <- edge_df |> 
+#   filter(grepl("A.", from))
+# 
+# write.csv(full_edge_df_village_m, 
+#           "./self_reported_networks/The_ReUp/Results/full_edge_df_village_m.RData")
+# 
+# full_edge_df_village_s <- edge_df |> 
+#   filter(grepl("D.", from))
+# 
+# write.csv(full_edge_df_village_s, 
+#           "./self_reported_networks/The_ReUp/Results/full_edge_df_village_s.RData")
+# 
+# full_edge_df_village_a <- edge_df |> 
+#   filter(grepl("E.", from))
+# 
+# write.csv(full_edge_df_village_a, 
+#           "./self_reported_networks/The_ReUp/Results/full_edge_df_village_a.RData")
+# 
+
 ### Running GLMMs ----
 
 model_mandena <- glmmTMB(edge ~
@@ -290,6 +311,27 @@ high_risk_network_df_sarahandrano<-high_risk_network_df |>
 
 high_risk_network_df_ampandrana<-high_risk_network_df |> 
   filter(grepl("Ampand|Andats", village))
+
+
+### edge lists for pub ----
+# high_risk_edge_df_village_m <- edge_df_high_risk |>
+#   filter(grepl("A.", from))
+# 
+# write.csv(high_risk_edge_df_village_m,
+#           "./self_reported_networks/The_ReUp/Results/high_risk_edge_df_village_m.RData")
+# 
+# high_risk_edge_df_village_s <- edge_df_high_risk |>
+#   filter(grepl("D.", from))
+# 
+# write.csv(high_risk_edge_df_village_s,
+#           "./self_reported_networks/The_ReUp/Results/high_risk_edge_df_village_s.RData")
+# 
+# high_risk_edge_df_village_a <- edge_df_high_risk |>
+#   filter(grepl("E.", from))
+# 
+# write.csv(high_risk_edge_df_village_a,
+#           "./self_reported_networks/The_ReUp/Results/high_risk_edge_df_village_a.RData")
+# 
 
 ### running GLMMs ----
 
