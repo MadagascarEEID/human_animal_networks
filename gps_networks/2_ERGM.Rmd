@@ -500,14 +500,15 @@ summary_df <- rbind(as.data.frame(mandena_summary$coefficients)[2:14,], as.data.
 #summary_df <- summary_df[-42,] #CHANGE THIS
 
 summary_df$Village <- c(rep("Mandena", 13), rep("Sarahandrano", 13), rep("Andatsakala", 13))
-summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Zebu", "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu", "Animal Sex[Male]"))
-summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "Commercial Goods", "House Materials", "Animal Sex[Male]",  "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu","Zebu"))
+summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Cattle", "Commercial Goods:Cattle", "House Materials:Cattle", "Vanilla:Cattle", "Animal Sex[Male]"))
+
+summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "Commercial Goods", "House Materials", "Animal Sex[Male]",  "Commercial Goods:Cattle", "House Materials:Cattle", "Vanilla:Cattle", "Cattle"))
 summary_df$lower_ci <- summary_df$Estimate - 1.96* summary_df$`Std. Error`
 summary_df$upper_ci <- summary_df$Estimate + 1.96* summary_df$`Std. Error`
 summary_df$lower_ci_90 <- summary_df$Estimate -qnorm(0.95)* summary_df$`Std. Error`
 summary_df$upper_ci_90 <- summary_df$Estimate + qnorm(0.95)* summary_df$`Std. Error`
 
-summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Zebu", Variable !="House Materials:Zebu", Variable !="Commercial Goods:Zebu", Variable !="Vanilla:Zebu", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
+summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Cattle", Variable !="House Materials:Cattle", Variable !="Commercial Goods:Cattle", Variable !="Vanilla:Cattle", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
 
 
  ggplot(summary_df, aes(x = Estimate, y = Variable, color = Village)) +
@@ -565,7 +566,7 @@ fig_2 <-ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Sig
 
 
 
-summary_df_filtered3 <- summary_df %>% filter(Variable =="Zebu"| Variable =="House Materials:Zebu"| Variable =="Commercial Goods:Zebu"| Variable =="Vanilla:Zebu"| Variable =="Animal Sex[Male]")
+summary_df_filtered3 <- summary_df %>% filter(Variable =="Cattle"| Variable =="House Materials:Cattle"| Variable =="Commercial Goods:Cattle"| Variable =="Vanilla:Cattle"| Variable =="Animal Sex[Male]")
 
 summary_df_filtered3$Significance <- summary_df_filtered3$`Pr(>|z|)`
 summary_df_filtered3$Significance[summary_df_filtered3$`Pr(>|z|)`<0.05] <- "Significant"
@@ -630,8 +631,6 @@ summary_df_filtered3$Village[summary_df_filtered3$Village=="Mandena"] <- "M"
 summary_df_filtered3$Village[summary_df_filtered3$Village=="Sarahandrano"] <- "S"
 summary_df_filtered3$Village[summary_df_filtered3$Village=="Andatsakala"] <- "A"
 
-#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="CGSOL:Zebu"] <- "Commercial Goods:Zebu"
-#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="HSOL:Zebu"] <- "House Materials:Zebu"
 
 animals_plot <- ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Village)) + 
   # Points for estimated effects with dodge position
