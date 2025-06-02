@@ -455,12 +455,12 @@ meta_df_high_risk <- meta_df_high_risk |>
 
 # Loading ERMG results ----
 
-load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala.RData")
-load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena.RData")
-load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano.RData")
-load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala_high_risk2.RData")
-load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena_high_risk3.RData")
-load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano_high_risk2.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_high_risk_village_m.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_high_risk_village_s.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_high_risk_village_a.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_full_village_m.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_full_village_s.RData")
+load("/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_full_village_a.RData")
 
 
 

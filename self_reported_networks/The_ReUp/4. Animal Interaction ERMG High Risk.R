@@ -135,7 +135,7 @@ ergm:::plot.gof(gof(ergm_ampandrana_andatsakala_high_risk))
 vif.ergm(ergm_ampandrana_andatsakala_high_risk)
 summary(ergm_ampandrana_andatsakala_high_risk)
 
-save(ergm_ampandrana_andatsakala_high_risk, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_ampandrana_andatsakala_high_risk2.RData")
+save(ergm_ampandrana_andatsakala_high_risk, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_high_risk_village_a.RData")
 
 
 ergm_mandena_high_risk<- ergm(bipartite_graph_sna_list_high_risk[[2]] ~ edges +
@@ -166,7 +166,7 @@ summary(ergm_mandena_high_risk)
 
 ergm_mandena_high_risk_lemurs <- ergm_mandena_high_risk
 
-save(ergm_mandena_high_risk_lemurs, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_mandena_high_risk3.RData")
+save(ergm_mandena_high_risk_lemurs, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_high_risk_village_m.RData")
 
 
 
@@ -199,7 +199,7 @@ ergm:::plot.gof(gof(ergm_sarahandrano_high_risk))
 vif.ergm(ergm_sarahandrano_high_risk)
 summary(ergm_sarahandrano_high_risk)
 
-save(ergm_sarahandrano_high_risk, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_sarahandrano_high_risk2.RData")
+save(ergm_sarahandrano_high_risk, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_high_risk_village_s.RData")
 
 
 

@@ -109,7 +109,7 @@ gof(ergm_ampandrana_andatsakala)
 summary(ergm_ampandrana_andatsakala)
 vif.ergm(ergm_ampandrana_andatsakala)
 
-save(ergm_ampandrana_andatsakala, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_ampandrana_andatsakala.RData")
+save(ergm_ampandrana_andatsakala, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_full_village_a.RData")
 
 
 ergm_mandena <- ergm(bipartite_graph_full_network_sna_list[[2]] ~
@@ -141,7 +141,7 @@ gof(ergm_mandena)
 vif.ergm(ergm_mandena)
 summary(ergm_mandena)
 
-save(ergm_mandena, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_mandena.RData")
+save(ergm_mandena, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_full_village_m.RData")
 
 
 ergm_sarahandrano <- ergm(bipartite_graph_full_network_sna_list[[3]] ~
@@ -171,7 +171,7 @@ ergm:::plot.gof(gof(ergm_sarahandrano))
 vif.ergm(ergm_sarahandrano)
 summary(ergm_sarahandrano) 
 
-save(ergm_sarahandrano, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_mandena.RData")
+save(ergm_sarahandrano, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/The_ReUp/ergm_full_village_s.RData")
 
 
 

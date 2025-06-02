@@ -1,6 +1,6 @@
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala.RData")
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano.RData")
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_full_village_a.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_full_village_s.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_full_village_m.RData")
 
 library(ergm)
 library(tidyverse)
@@ -298,9 +298,9 @@ ggarrange(full_network_a,
 
 
 # HIGH RISK NETWORKS ----
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_ampandrana_andatsakala_high_risk2.RData")
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_sarahandrano_high_risk2.RData")
-load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_mandena_high_risk3.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_high_risk_village_a.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_high_risk_village_m.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/Results/ergm_high_risk_village_s.RData")
 
 
 pool_function_high_risk <- function(variable){
