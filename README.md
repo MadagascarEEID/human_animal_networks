@@ -64,9 +64,12 @@ This folder contains up-to-date code for finalized analyses.
 -  **figures_emory.R** visualizations for Charlie's presentation at Emory in January 2025
 
 -  **network_figures_take_2.R** network visualizations for ms
+  
+-  **pooled_coef_plots_combined.R** combining coefficient plots into one multi-panel plot
 
 #### /Results
 Contains all edge lists and ERGM outputs
+- **results_tables_supplementary.R** creating table for supplementary materials with detailed model results, including endogenous terms
 
 
 
