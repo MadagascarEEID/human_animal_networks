@@ -1,6 +1,8 @@
 library(hrbrthemes)
 library(here)
 library(tidyverse)
+library(ggplot2)
+library(viridis)
 source(here("./self_reported_networks/The_ReUp/Loading Interaction Data.R"))
 
 
@@ -62,9 +64,9 @@ interaction_order <- c("sharedwater", "feces", "scratchedbitten", "cookedhandled
                        "inside", "huntedtrapped", "handle", "dead")
 
 interaction_labels <- c(
-  "Shared Water*", "Feces*", "Scratched/Bitten*", "Cooked*", "Eaten Raw*",
-  "Eaten Sick*", "Slaughtered*", "Raised", "Pet", "Inside", "Hunted/Trapped", 
-  "Handled", "Dead"
+  "Shared Water Source*", "Feces in Food*", "Scratched/Bitten*", "Handled Raw Tissue*", "Eaten Raw*",
+  "Eaten Sick*", "Slaughtered*", "Raised", "Pet", "Inside House", "Hunted/Trapped", 
+  "Handled Live", "Collected Dead"
 )
 
 # Modify the animal variable to set order and labels
@@ -73,7 +75,7 @@ heatmap_data <- heatmap_data %>%
   mutate(interaction_type = factor(interaction_type, levels = interaction_order, labels = interaction_labels))
 
 # Create the heatmap
-ggplot(heatmap_data, aes(x = animal, y = interaction_type, fill = count)) +
+heatmap<- ggplot(heatmap_data, aes(x = animal, y = interaction_type, fill = count)) +
   geom_tile(color = NA) +  # Removes gridlines between tiles
   scale_fill_viridis(name = "Count", begin = .7, end = 0) +
   geom_text(aes(label = count), color = "white", size = 4) +  # Add count labels
@@ -92,6 +94,9 @@ ggplot(heatmap_data, aes(x = animal, y = interaction_type, fill = count)) +
     panel.grid = element_blank()  # Remove all gridlines
   )
   
+
+# ggsave("heatmap_revised.png", plot = heatmap, width = 8,
+#        height = 6, units = "in", dpi = 300)
 
 
 

@@ -1,6 +1,6 @@
 library(tidyverse)
-demographic_health_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/Survey_Demographic_Health.csv")
-animal_interaction_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/Survey_Animal_Interaction.csv")
+demographic_health_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Demographic_Health.csv")
+animal_interaction_data <- read.csv("/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Animal_Interaction.csv")
 
 
 # cleaning data, selecting only columns that I want, converting binaries to 0 and 1
