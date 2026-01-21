@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 #Load packages
-library(tidyverse); library(scales);library(bipartite);library(ggpubr);library(ergm);library(network);library(ggnet);library(ergMargins)
+library(tidyverse); library(scales);library(bipartite);library(ggpubr);library(ergm);library(network);library(ergMargins)
 
 #Load data
 wd_path <- '~/Documents/GitHub/human_animal_networks/gps_networks/'
@@ -18,9 +18,9 @@ getwd()
 setwd(wd_path)
 data_path <- 'outputs/'
 
-gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand.csv")) %>% select(-X)
-gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda.csv")) %>% select(-X)
-gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara.csv")) %>% select(-X)
+gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand_20.csv")) %>% select(-X)
+gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda_20.csv")) %>% select(-X)
+gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara_20.csv")) %>% select(-X)
 
 metadata <- read.csv("~/Documents/GitHub/human_animal_networks/gps_networks/metadata2.csv")
 animal_dat <- read.csv("~/Documents/Projects/SAVA_multilayer/cleaned_tables/Survey_Animal_Health.csv") %>% rename(id1="animal_id")
@@ -453,7 +453,7 @@ ergm_mandena <- ergm(net_mand ~ edges + b1cov("age")+b1factor("gender")+b1factor
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+ b1degree(2)+ b1degree(1)+ b1degree(3), 
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex") + b1degree(0) +b1degree(4), 
                  control = control.ergm(seed = 123))
 
 mandena_summary <-summary(ergm_mandena)
@@ -467,7 +467,7 @@ ergm_sara <- ergm(net_sara ~ edges + b1cov("age")+b1factor("gender")+b1factor("v
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+ b1degree(2)+ b1degree(1)+ b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11), 
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex"), 
                  control = control.ergm(seed = 123))
 
 sara_summary <-summary(ergm_sara)
@@ -480,9 +480,9 @@ max(vif.ergm(ergm_sara))
 ergm_anda <- ergm(net_anda ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
-                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+ b1degree(2)+ b1degree(1)+
-                      + b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11)+ b1degree(12)+ b1degree(13)+ b1degree(14)+ b1degree(15)+ b1degree(16)+b1degree(22)+b1degree(23), 
+                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +b1degree(0)+b1degree(1)+
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+
+                  b1degree(2)+b1degree(3)+b1degree(7)+b1degree(8), 
                  control = control.ergm(seed = 123))
 
 anda_summary <-summary(ergm_anda)
@@ -490,10 +490,6 @@ anda_summary
 gof_anda <- gof(ergm_anda)
 plot(gof_anda)
 max(vif.ergm(ergm_anda))
-
-save(ergm_mandena, file = "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/ergm_mandena.RData")
-save(ergm_anda, file = "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/ergm_anda.RData")
-save(ergm_sara, file = "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/ergmsara.RData")
 
 ```
 
@@ -504,15 +500,14 @@ summary_df <- rbind(as.data.frame(mandena_summary$coefficients)[2:14,], as.data.
 #summary_df <- summary_df[-42,] #CHANGE THIS
 
 summary_df$Village <- c(rep("Mandena", 13), rep("Sarahandrano", 13), rep("Andatsakala", 13))
-summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Cattle", "Commercial Goods:Cattle", "House Materials:Cattle", "Vanilla:Cattle", "Animal Sex[Male]"))
-
-summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "Commercial Goods", "House Materials", "Animal Sex[Male]",  "Commercial Goods:Cattle", "House Materials:Cattle", "Vanilla:Cattle", "Cattle"))
+summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Zebu", "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu", "Animal Sex[Male]"))
+summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "Commercial Goods", "House Materials", "Animal Sex[Male]",  "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu","Zebu"))
 summary_df$lower_ci <- summary_df$Estimate - 1.96* summary_df$`Std. Error`
 summary_df$upper_ci <- summary_df$Estimate + 1.96* summary_df$`Std. Error`
 summary_df$lower_ci_90 <- summary_df$Estimate -qnorm(0.95)* summary_df$`Std. Error`
 summary_df$upper_ci_90 <- summary_df$Estimate + qnorm(0.95)* summary_df$`Std. Error`
 
-summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Cattle", Variable !="House Materials:Cattle", Variable !="Commercial Goods:Cattle", Variable !="Vanilla:Cattle", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
+summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Zebu", Variable !="House Materials:Zebu", Variable !="Commercial Goods:Zebu", Variable !="Vanilla:Zebu", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
 
 
  ggplot(summary_df, aes(x = Estimate, y = Variable, color = Village)) +
@@ -570,7 +565,7 @@ fig_2 <-ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Sig
 
 
 
-summary_df_filtered3 <- summary_df %>% filter(Variable =="Cattle"| Variable =="House Materials:Cattle"| Variable =="Commercial Goods:Cattle"| Variable =="Vanilla:Cattle"| Variable =="Animal Sex[Male]")
+summary_df_filtered3 <- summary_df %>% filter(Variable =="Zebu"| Variable =="House Materials:Zebu"| Variable =="Commercial Goods:Zebu"| Variable =="Vanilla:Zebu"| Variable =="Animal Sex[Male]")
 
 summary_df_filtered3$Significance <- summary_df_filtered3$`Pr(>|z|)`
 summary_df_filtered3$Significance[summary_df_filtered3$`Pr(>|z|)`<0.05] <- "Significant"
@@ -592,8 +587,6 @@ fig_3 <-ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Sig
   )+
   geom_vline(xintercept=0, linetype= "dashed")
 
-
-ggarrange(fig_2, fig_3, common.legend = TRUE)
 
 
 
@@ -635,6 +628,8 @@ summary_df_filtered3$Village[summary_df_filtered3$Village=="Mandena"] <- "M"
 summary_df_filtered3$Village[summary_df_filtered3$Village=="Sarahandrano"] <- "S"
 summary_df_filtered3$Village[summary_df_filtered3$Village=="Andatsakala"] <- "A"
 
+#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="CGSOL:Zebu"] <- "Commercial Goods:Zebu"
+#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="HSOL:Zebu"] <- "House Materials:Zebu"
 
 animals_plot <- ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Village)) + 
   # Points for estimated effects with dodge position
@@ -666,7 +661,7 @@ animals_plot <- ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, col
 
 ggarrange(people_plot, animals_plot, labels = c("a", "b"), common.legend = TRUE)
 
-write.csv(summary_df, "summary_df_spatial.csv")
+write.csv(summary_df, "summary_df_spatial_sensitivity.csv")
 
 
 
@@ -784,4 +779,8 @@ edge_density <- num_edges / max_edges
 
 plot(net_anda)
 ```
+
+
+
+
 

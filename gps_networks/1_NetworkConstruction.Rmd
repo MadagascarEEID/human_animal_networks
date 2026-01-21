@@ -59,16 +59,16 @@ vi_anda_edge_m <- vi_adj9 %>% filter(village =="Andatsakala") %>% select(id1, id
 
 mean(vi_mand_edge_m$weight)
 median(vi_mand_edge_m$weight)
-quantile(vi_mand_edge_m$weight, 0.90)
+quantile(vi_mand_edge_m$weight, 0.95)
 
 
 mean(vi_sara_edge_m$weight)
 median(vi_sara_edge_m$weight)
-quantile(vi_sara_edge_m$weight, 0.90)
+quantile(vi_sara_edge_m$weight, 0.95)
 
 mean(na.omit(vi_anda_edge_m$weight))
 median(na.omit(vi_anda_edge_m$weight))
-quantile(na.omit(vi_anda_edge_m$weight), 0.90)
+quantile(na.omit(vi_anda_edge_m$weight), 0.95)
 
 mean(na.omit(vi_adj9$weight))
 median(na.omit(vi_adj9$weight))
@@ -78,6 +78,11 @@ vi_mand_edge_m2 <- vi_mand_edge_m %>% mutate(weight = ifelse(weight < 4.7, 0, we
 vi_sara_edge_m2 <- vi_sara_edge_m %>% mutate(weight = ifelse(weight < 6.25, 0, weight))
 vi_anda_edge_m2 <- vi_anda_edge_m %>% mutate(weight = ifelse(weight < 4.22, 0, weight))
 
+
+vi_mand_edge_m3 <- vi_mand_edge_m %>% mutate(weight = ifelse(weight < 9.593401  , 0, weight))
+vi_sara_edge_m3 <- vi_sara_edge_m %>% mutate(weight = ifelse(weight < 13.6283 , 0, weight))
+vi_anda_edge_m3 <- vi_anda_edge_m %>% mutate(weight = ifelse(weight < 9.575529  , 0, weight))
+
 ```
 
 ```{r Construct Networks}
@@ -85,6 +90,11 @@ vi_anda_edge_m2 <- vi_anda_edge_m %>% mutate(weight = ifelse(weight < 4.22, 0, w
 write.csv(vi_mand_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
 write.csv(vi_sara_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara.csv")
 write.csv(vi_anda_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
+
+
+write.csv(vi_mand_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand_20.csv")
+write.csv(vi_sara_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara_20.csv")
+write.csv(vi_anda_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda_20.csv")
 
 
 vi_mand_edge <- read.csv( "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
