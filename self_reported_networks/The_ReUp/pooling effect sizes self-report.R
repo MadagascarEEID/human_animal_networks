@@ -16,10 +16,10 @@ summary_df <- rbind(as.data.frame(summary(ergm_ampandrana_andatsakala)$coefficie
   mutate(Village = c(rep("Ampandrana", 17), rep("Mandena", 17), rep("Sarahandrano", 17))) 
 
 
-summary_df$term <- rep(c("Edges", "Age", "Gender[Male]", "CGSOL", "HSOL",  "Vanilla Farmer",
-                     "Land Size", "Household Size", "School Level", "Rodents", "Wild Animals",
-                     "CGSOL:Rodents", "CGSOL:Wild Animals", "HSOL:Rodents", "HSOL:Wild Animals",
-                     "Vanilla:Rodents", "Vanilla:Wild Animals"), 3)
+summary_df$term <- rep(c("Edges", "Age", "Gender[Male]", "CGSOL", "HSOL",  "Vanilla",
+                     "Land Size", "Household Size", "School Level", "Rodents", "Wild",
+                     "CGSOL:Rodents", "CGSOL:Wild", "HSOL:Rodents", "HSOL:Wild",
+                     "Vanilla:Rodents", "Vanilla:Wild"), 3)
 
 summary_df<-summary_df |> 
   rename("Variable" = term)
@@ -41,23 +41,23 @@ pool_function <- function(variable){
 
 name_age_pr <- pool_function(variable ="Age")
 name_sex_pr <- pool_function(variable ="Gender[Male]")
-name_vanilla_pr <- pool_function(variable ="Vanilla Farmer")
+name_vanilla_pr <- pool_function(variable ="Vanilla")
 name_ls_pr <- pool_function(variable ="Land Size")
 name_hs_pr <- pool_function(variable ="Household Size")
 name_sl_pr <- pool_function(variable ="School Level")
 name_cgsol_pr <- pool_function(variable ="CGSOL")
 name_hsol_pr <- pool_function(variable ="HSOL")
 name_rodents_pr <- pool_function(variable ="Rodents")
-name_wild_animals_pr <- pool_function(variable ="Wild Animals")
+name_wild_animals_pr <- pool_function(variable ="Wild")
 
 name_hsol_rodents_pr <- pool_function(variable ="HSOL:Rodents")
-name_hsol_wild_animals_pr <- pool_function(variable ="HSOL:Wild Animals")
+name_hsol_wild_animals_pr <- pool_function(variable ="HSOL:Wild")
 
 name_vanilla_rodents_pr <- pool_function(variable ="Vanilla:Rodents")
-name_vanilla_wild_animals_pr <- pool_function(variable ="Vanilla:Wild Animals")
+name_vanilla_wild_animals_pr <- pool_function(variable ="Vanilla:Wild")
 
 name_cgsol_rodents_pr <- pool_function(variable ="CGSOL:Rodents")
-name_cgsol_wild_animals_pr <- pool_function(variable ="CGSOL:Wild Animals")
+name_cgsol_wild_animals_pr <- pool_function(variable ="CGSOL:Wild")
 
 meta_df <- as.data.frame(rbind(name_age_pr,
                                name_sex_pr,
@@ -80,11 +80,11 @@ meta_df <- as.data.frame(rbind(name_age_pr,
 
 colnames(meta_df) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
 
-meta_df$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size",
-                      "Household Size", "School Level",  "Commercial Goods", "House Materials", "Rodent",
-                      "Wild Animal", "House Materials:Rodent","House Materials:Wild Animal",
-                       "Vanilla:Rodent","Vanilla:Wild Animal",
-                      "Commercial Goods:Rodent", "Commercial Goods:Wild Animal")
+meta_df$Variable <- c("Age", "Gender[Man]", "Vanilla", "Land Size",
+                      "Household Size", "School Level",  "Goods", "House Mat.", "Rodent",
+                      "Wild", "House Mat.:Rodent","House Mat.:Wild",
+                       "Vanilla:Rodent","Vanilla:Wild",
+                      "Goods:Rodent", "Goods:Wild")
 
 
 
@@ -108,7 +108,7 @@ meta_df_people <- meta_df |>
 meta_df_people$Variable <- factor(
   meta_df_people$Variable,
   levels = rev(c(
-    "House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size", 
+    "House Mat.", "Goods", "Vanilla", "Land Size", 
     "Household Size", "School Level", "Gender[Man]", "Age"
   ))
 )
@@ -119,15 +119,15 @@ meta_df_animal <- meta_df |>
 meta_df_animal$Variable <- factor(
   meta_df_animal$Variable,
   levels = rev(c(
-    "Rodent", "Wild Animal", "Vanilla:Rodent","Vanilla:Wild Animal", 
-    "House Materials:Rodent","House Materials:Wild Animal",
-    "Commercial Goods:Rodent", "Commercial Goods:Wild Animal"
+    "Rodent", "Wild", "Vanilla:Rodent","Vanilla:Wild", 
+    "House Mat.:Rodent","House Mat.:Wild",
+    "Goods:Rodent", "Goods:Wild"
   ))
 )
 
 
 
-people_plot_pooled <- ggplot(meta_df_people, aes(x = Estimate, y = Variable)) + 
+people_plot_pooled_self_report <- ggplot(meta_df_people, aes(x = Estimate, y = Variable)) + 
   # Points for estimated effects with dodge position
   geom_point(position = position_dodge(width = 0.5), size = 3) + 
   # 95% CI as thinner linerange
@@ -154,7 +154,7 @@ people_plot_pooled <- ggplot(meta_df_people, aes(x = Estimate, y = Variable)) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
 
-animal_plot_pooled <- ggplot(meta_df_animal, aes(x = Estimate, y = Variable)) + 
+animal_plot_pooled_self_report <- ggplot(meta_df_animal, aes(x = Estimate, y = Variable)) + 
   # Points for estimated effects with dodge position
   geom_point(position = position_dodge(width = 0.5), size = 3) + 
   # 95% CI as thinner linerange
@@ -180,8 +180,8 @@ animal_plot_pooled <- ggplot(meta_df_animal, aes(x = Estimate, y = Variable)) +
   # Reference line at zero
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
 
-ggarrange(people_plot_pooled,
-          animal_plot_pooled, 
+ggarrange(people_plot_pooled_self_report,
+          animal_plot_pooled_self_report, 
           labels = c("a", "b"), common.legend = TRUE)
 
 
@@ -189,7 +189,8 @@ ggarrange(people_plot_pooled,
 
 summary_df_people <- summary_df |> 
   mutate(
-    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Variable = str_replace_all(Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.", 
+                                           "Gender\\[Male\\]" = "Gender[Man]")),
     Village = case_when(
       Village == "Ampandrana" ~ "A",
       Village == "Sarahandrano" ~ "S",
@@ -206,8 +207,8 @@ summary_df_people <- summary_df |>
   )
 
 summary_df_people$Variable <- factor(summary_df_people$Variable, 
-                                     levels = rev(c("House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size", 
-                                                    "Household Size", "School Level", "Gender[Male]", "Age")))
+                                     levels = rev(c("House Mat.", "Goods", "Vanilla", "Land Size", 
+                                                    "Household Size", "School Level", "Gender[Man]", "Age")))
 
 
 full_network_a<-ggplot(summary_df_people, aes(x = Estimate, y = Variable, color = Village)) + 
@@ -243,7 +244,8 @@ full_network_a<-ggplot(summary_df_people, aes(x = Estimate, y = Variable, color 
 
 summary_df_animal <- summary_df |> 
   mutate(
-    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Variable = str_replace_all(Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.", 
+                                           "Rodents" = "Rodent" )),
     Village = case_when(
       Village == "Ampandrana" ~ "A",
       Village == "Sarahandrano" ~ "S",
@@ -260,9 +262,9 @@ summary_df_animal <- summary_df |>
   )
 
 summary_df_animal$Variable <- factor(summary_df_animal$Variable, 
-                                     levels = rev(c("Rodents", "Wild Animals", "Vanilla:Rodents", "Vanilla:Wild Animals", 
-                                                    "House Materials:Rodents", "House Materials:Wild Animals",
-                                                    "Commercial Goods:Rodents", "Commercial Goods:Wild Animals")))
+                                     levels = rev(c("Rodent", "Wild", "Vanilla:Rodent", "Vanilla:Wild", 
+                                                    "House Mat.:Rodent", "House Mat.:Wild",
+                                                    "Goods:Rodent", "Goods:Wild")))
 full_network_b<-ggplot(summary_df_animal, aes(x = Estimate, y = Variable, color = Village)) + 
   # Points for estimated effects with dodge position
   geom_point(position = position_dodge(width = 0.5), size = 3) + 
@@ -326,11 +328,11 @@ summary_df_high_risk <- rbind(as.data.frame(summary(ergm_ampandrana_andatsakala_
   mutate(Village = c(rep("Ampandrana", 21), rep("Mandena", 21), rep("Sarahandrano", 21))) 
 
 
-summary_df_high_risk$term <- rep(c("Edges", "Age", "Gender[Male]", "CGSOL", "HSOL",  "Vanilla Farmer",
-                         "Land Size", "Household Size", "School Level", "Domesticated (Uncommon)", "Rodents", "Wild Animals",
-                         "CGSOL:Domesticated (Uncommon)","CGSOL:Rodents", "CGSOL:Wild Animals", 
-                         "HSOL:Domesticated (Uncommon)", "HSOL:Rodents", "HSOL:Wild Animals",
-                         "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodents", "Vanilla:Wild Animals"), 3)
+summary_df_high_risk$term <- rep(c("Edges", "Age", "Gender[Male]", "CGSOL", "HSOL",  "Vanilla",
+                         "Land Size", "Household Size", "School Level", "Other Dom.", "Rodents", "Wild",
+                         "CGSOL:Other Dom.","CGSOL:Rodents", "CGSOL:Wild", 
+                         "HSOL:Other Dom.", "HSOL:Rodents", "HSOL:Wild",
+                         "Vanilla:Other Dom.", "Vanilla:Rodents", "Vanilla:Wild"), 3)
 
 summary_df_high_risk<-summary_df_high_risk |> 
   rename("Variable" = term)
@@ -338,28 +340,28 @@ summary_df_high_risk<-summary_df_high_risk |>
 
 name_age_pr_high_risk <- pool_function_high_risk(variable ="Age")
 name_sex_pr_high_risk <- pool_function_high_risk(variable ="Gender[Male]")
-name_vanilla_pr_high_risk <- pool_function_high_risk(variable ="Vanilla Farmer")
+name_vanilla_pr_high_risk <- pool_function_high_risk(variable ="Vanilla")
 name_ls_pr_high_risk <- pool_function_high_risk(variable ="Land Size")
 name_hs_pr_high_risk <- pool_function_high_risk(variable ="Household Size")
 name_sl_pr_high_risk <- pool_function_high_risk(variable ="School Level")
 name_cgsol_pr_high_risk <- pool_function_high_risk(variable ="CGSOL")
 name_hsol_pr_high_risk <- pool_function_high_risk(variable ="HSOL")
 
-name_domesticated_uncommon_pr_high_risk <- pool_function_high_risk(variable = "Domesticated (Uncommon)")
+name_domesticated_uncommon_pr_high_risk <- pool_function_high_risk(variable = "Other Dom.")
 name_rodents_pr_high_risk <- pool_function_high_risk(variable ="Rodents")
-name_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="Wild Animals")
+name_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="Wild")
 
-name_hsol_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Domesticated (Uncommon)")
+name_hsol_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Other Dom.")
 name_hsol_rodents_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Rodents")
-name_hsol_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Wild Animals")
+name_hsol_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="HSOL:Wild")
 
-name_vanilla_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Domesticated (Uncommon)")
+name_vanilla_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Other Dom.")
 name_vanilla_rodents_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Rodents")
-name_vanilla_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Wild Animals")
+name_vanilla_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="Vanilla:Wild")
 
-name_cgsol_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Domesticated (Uncommon)")
+name_cgsol_dom_uncommon_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Other Dom.")
 name_cgsol_rodents_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Rodents")
-name_cgsol_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Wild Animals")
+name_cgsol_wild_animals_pr_high_risk <- pool_function_high_risk(variable ="CGSOL:Wild")
 
 meta_df_high_risk <- as.data.frame(rbind(name_age_pr_high_risk,
                                name_sex_pr_high_risk,
@@ -386,13 +388,13 @@ meta_df_high_risk <- as.data.frame(rbind(name_age_pr_high_risk,
 
 colnames(meta_df_high_risk) <- c("Estimate", "Lower", "Upper", "Pr(>|z|)","SE", "N")
 
-meta_df_high_risk$Variable <- c("Age", "Gender[Man]", "Vanilla Farmer", "Land Size",
-                      "Household Size", "School Level",  "Commercial Goods", "House Materials", "Domesticated (Uncommon)",
-                      "Rodent", "Wild Animal",  "House Materials:Domesticated (Uncommon)", 
-                      "House Materials:Rodent","House Materials:Wild Animal",
-                      "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodent","Vanilla:Wild Animal",
-                      "Commercial Goods:Domesticated (Uncommon)", "Commercial Goods:Rodent", 
-                      "Commercial Goods:Wild Animal")
+meta_df_high_risk$Variable <- c("Age", "Gender[Man]", "Vanilla", "Land Size",
+                      "Household Size", "School Level",  "Goods", "House Mat.", "Other Dom.",
+                      "Rodent", "Wild",  "House Mat.:Other Dom.", 
+                      "House Mat.:Rodent","House Mat.:Wild",
+                      "Vanilla:Other Dom.", "Vanilla:Rodent","Vanilla:Wild",
+                      "Goods:Other Dom.", "Goods:Rodent", 
+                      "Goods:Wild")
 
 
 
@@ -417,7 +419,7 @@ meta_df_high_risk_people <- meta_df_high_risk |>
 meta_df_high_risk_people$Variable <- factor(
   meta_df_high_risk_people$Variable,
   levels = rev(c(
-    "House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size", 
+    "House Mat.", "Goods", "Vanilla", "Land Size", 
     "Household Size", "School Level", "Gender[Man]", "Age"
   ))
 )
@@ -428,10 +430,10 @@ meta_df_high_risk_animal <- meta_df_high_risk |>
 meta_df_high_risk_animal$Variable <- factor(
   meta_df_high_risk_animal$Variable,
   levels = rev(c(
-    "Domesticated (Uncommon)", "Rodent", "Wild Animal", 
-    "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodent","Vanilla:Wild Animal", 
-    "House Materials:Domesticated (Uncommon)", "House Materials:Rodent","House Materials:Wild Animal",
-    "Commercial Goods:Domesticated (Uncommon)", "Commercial Goods:Rodent", "Commercial Goods:Wild Animal"
+    "Other Dom.", "Rodent", "Wild", 
+    "Vanilla:Other Dom.", "Vanilla:Rodent","Vanilla:Wild", 
+    "House Mat.:Other Dom.", "House Mat.:Rodent","House Mat.:Wild",
+    "Goods:Other Dom.", "Goods:Rodent", "Goods:Wild"
   ))
 )
 
@@ -498,7 +500,8 @@ ggarrange(people_plot_high_risk_pooled,
 #plotting with village included ----
 summary_df_high_risk_people <- summary_df_high_risk |>
   mutate(
-    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Variable = str_replace_all(Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.",
+                                           "Gender\\[Male\\]" = "Gender[Man]")),
     Village = case_when(
       Village == "Ampandrana" ~ "A",
       Village == "Sarahandrano" ~ "S",
@@ -506,7 +509,7 @@ summary_df_high_risk_people <- summary_df_high_risk |>
       TRUE ~ Village
     )
   ) |>
-  filter(!str_detect(Variable, "omestic|odent|ild|ges")) |>
+  filter(!str_detect(Variable, "om|odent|ild|ges")) |>
   mutate(
     lower_ci_95 = Estimate - 1.96 * `Std. Error`,
     upper_ci_95 = Estimate + 1.96 * `Std. Error`,
@@ -515,8 +518,8 @@ summary_df_high_risk_people <- summary_df_high_risk |>
   )
 
 summary_df_high_risk_people$Variable <- factor(summary_df_high_risk_people$Variable,
-                                               levels = rev(c("House Materials", "Commercial Goods", "Vanilla Farmer", "Land Size",
-                                                              "Household Size", "School Level", "Gender[Male]", "Age")))
+                                               levels = rev(c("House Mat.", "Goods", "Vanilla", "Land Size",
+                                                              "Household Size", "School Level", "Gender[Man]", "Age")))
 
 high_risk_network_a <- ggplot(summary_df_high_risk_people, aes(x = Estimate, y = Variable, color = Village)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
@@ -542,7 +545,8 @@ high_risk_network_a <- ggplot(summary_df_high_risk_people, aes(x = Estimate, y =
 # ---- High Risk Animal ----
 summary_df_high_risk_animal <- summary_df_high_risk |>
   mutate(
-    Variable = str_replace_all(Variable, c("CGSOL" = "Commercial Goods", "HSOL" = "House Materials")),
+    Variable = str_replace_all(Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.",
+                                           "Rodents" = "Rodent")),
     Village = case_when(
       Village == "Ampandrana" ~ "A",
       Village == "Sarahandrano" ~ "S",
@@ -550,7 +554,7 @@ summary_df_high_risk_animal <- summary_df_high_risk |>
       TRUE ~ Village
     )
   ) |>
-  filter(str_detect(Variable, "omestic|odent|ild")) |>
+  filter(str_detect(Variable, "om|odent|ild")) |>
   mutate(
     lower_ci_95 = Estimate - 1.96 * `Std. Error`,
     upper_ci_95 = Estimate + 1.96 * `Std. Error`,
@@ -559,10 +563,10 @@ summary_df_high_risk_animal <- summary_df_high_risk |>
   )
 
 summary_df_high_risk_animal$Variable <- factor(summary_df_high_risk_animal$Variable,
-                                               levels = rev(c("Domesticated (Uncommon)", "Rodents", "Wild Animals",
-                                                              "Vanilla:Domesticated (Uncommon)", "Vanilla:Rodents", "Vanilla:Wild Animals",
-                                                              "House Materials:Domesticated (Uncommon)", "House Materials:Rodents", "House Materials:Wild Animals",
-                                                              "Commercial Goods:Domesticated (Uncommon)", "Commercial Goods:Rodents", "Commercial Goods:Wild Animals")))
+                                               levels = rev(c("Other Dom.", "Rodent", "Wild",
+                                                              "Vanilla:Other Dom.", "Vanilla:Rodent", "Vanilla:Wild",
+                                                              "House Mat.:Other Dom.", "House Mat.:Rodent", "House Mat.:Wild",
+                                                              "Goods:Other Dom.", "Goods:Rodent", "Goods:Wild")))
 
 high_risk_network_b <- ggplot(summary_df_high_risk_animal, aes(x = Estimate, y = Variable, color = Village)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
