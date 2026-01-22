@@ -71,3 +71,4 @@ edge_list_ampandrana_andatsakala_full.RData
 node_degree_table.RData
 self_reported_networks/Archive/ergm_ampandrana_andatsakala_high_risk.RData
 self_reported_networks/Archive/ergm_mandena_high_risk.RData
+*.pdf
