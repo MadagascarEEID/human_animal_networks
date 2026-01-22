@@ -3,7 +3,7 @@ library(here)
 library(tidyverse)
 library(ggplot2)
 library(viridis)
-source(here("./self_reported_networks/The_ReUp/Loading Interaction Data.R"))
+source(here("./self_reported_networks/Loading Interaction Data.R"))
 
 
 animal_contact_data <- animal_interaction_data_cleaned |> 

@@ -1,5 +1,5 @@
 library(tidyverse);library(metafor);library(ggpubr); library(grid)  
-source("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/pooling effect sizes self-report.R")
+source("~/Desktop/human_animal_networks/self_reported_networks/pooling effect sizes self-report.R")
 summary_df <- read.csv("~/Desktop/human_animal_networks/gps_networks/outputs/summary_df_spatial.csv")
 
 
@@ -162,12 +162,12 @@ combined_plot <- ggarrange(
     )
   )
 
-ggsave(
-  "combined_plot.pdf",
-  plot = combined_plot,
-  width = 10,
-  height = 12,
-  dpi = 300
-)
+# ggsave(
+#   "combined_plot.pdf",
+#   plot = combined_plot,
+#   width = 10,
+#   height = 12,
+#   dpi = 300
+# )
 
 
