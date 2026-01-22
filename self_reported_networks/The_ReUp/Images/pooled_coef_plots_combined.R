@@ -1,4 +1,4 @@
-library(tidyverse);library(metafor);library(ggpubr)
+library(tidyverse);library(metafor);library(ggpubr); library(grid)  
 source("~/Desktop/human_animal_networks/self_reported_networks/The_ReUp/pooling effect sizes self-report.R")
 summary_df <- read.csv("~/Desktop/human_animal_networks/gps_networks/outputs/summary_df_spatial.csv")
 
@@ -135,5 +135,39 @@ ggsave("combined_plot.png",
        width = 10,       # in inches
        height = 12,      # in inches
        dpi = 300)        # resolution for publication
+
+
+
+library(ggpubr)
+library(grid)   # for unit()
+
+combined_plot <- ggarrange(
+  people_plot_pooled + theme(axis.title.x = element_blank()),
+  animals_plot_pooled + theme(axis.title.x = element_blank()),
+  people_plot_pooled_self_report + theme(axis.title.x = element_blank()),
+  animal_plot_pooled_self_report + theme(axis.title.x = element_blank()), 
+  people_plot_high_risk_pooled,
+  animal_plot_high_risk_pooled,
+  ncol = 2, nrow = 3,
+  labels = c("a", "b", "c", "d", "e", "f"),
+  common.legend = TRUE
+) +
+  theme(
+    plot.margin = margin(
+      t = 15,  # top
+      r = 20,  # right
+      b = 15,  # bottom
+      l = 20,  # left
+      unit = "mm"
+    )
+  )
+
+ggsave(
+  "combined_plot.pdf",
+  plot = combined_plot,
+  width = 10,
+  height = 12,
+  dpi = 300
+)
 
 
