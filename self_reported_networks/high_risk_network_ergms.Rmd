@@ -38,7 +38,7 @@ for (animal in animals) {
   merged_df[[paste0(animal, "_edge_cooked_handled")]] <- as.integer(rowSums(merged_df[cooked_handled_cols]) > 0)
   merged_df[[paste0(animal, "_edge_raw_undercooked")]] <- as.integer(rowSums(merged_df[raw_undercooked_cols]) > 0)
   merged_df[[paste0(animal, "_edge_eaten_sick")]] <- as.integer(rowSums(merged_df[eaten_sick_cols]) > 0)
-  merged_df[[paste0(animal, "_edge_slaughered")]] <- as.integer(rowSums(merged_df[slaughtered_cols]) > 0)
+  merged_df[[paste0(animal, "_edge_slaughtered")]] <- as.integer(rowSums(merged_df[slaughtered_cols]) > 0)
   
   
   # create high risk edge
@@ -48,7 +48,7 @@ for (animal in animals) {
                                                                                      paste0(animal, "_edge_cooked_handled"),
                                                                                      paste0(animal, "_edge_raw_undercooked"),
                                                                                      paste0(animal, "_edge_eaten_sick"),
-                                                                                     paste0(animal, "_edge_slaughered"))]) > 0)
+                                                                                     paste0(animal, "_edge_slaughtered"))]) > 0)
 }
 
 
