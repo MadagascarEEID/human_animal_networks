@@ -1,0 +1,1049 @@
+---
+title: "Human-Animal Contact Networks: Full Pipeline"
+author: "Lev Kolinski"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(igraph)
+library(statnet)
+library(ergm)
+library(ergMargins)
+library(metafor)
+library(ggpubr)
+library(ineq)
+library(kableExtra)
+library(broom)
+
+set.seed(1234)
+```
+
+---
+
+# 1. Load Raw Data
+
+```{r load-data}
+demographic_health_data <- read.csv(
+  "/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Demographic_Health.csv"
+)
+animal_interaction_data <- read.csv(
+  "/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Animal_Interaction.csv"
+)
+```
+
+---
+
+# 2. Clean and Merge Data
+
+```{r clean-merge}
+demographic_health_data_cleaned <- demographic_health_data |>
+  mutate(across(
+    starts_with(c("own_", "banking", "grew_crops", "crops")),
+    ~ ifelse(. == "Yes", 1L, 0L)
+  )) |>
+  select(
+    survey_date, social_netid, village, age, gender, school_level,
+    household_size, main_activity,
+    starts_with("material_"), starts_with("own_"),
+    crops_vanilla, landsize_in_daba
+  )
+
+animal_interaction_data_cleaned <- animal_interaction_data |>
+  mutate(across(-starts_with("social_netid"), ~ ifelse(. == "Yes", 1L, 0L))) |>
+  select(-starts_with("symptoms"), -starts_with("action_"),
+         -contains("frequency"))
+
+merged_df_raw <- inner_join(
+  demographic_health_data_cleaned,
+  animal_interaction_data_cleaned,
+  by = "social_netid"
+)
+
+cat("N after inner_join:", nrow(merged_df_raw), "\n")
+cat("Unique IDs:", length(unique(merged_df_raw$social_netid)), "\n")
+
+```
+
+---
+
+# 3. Feature Engineering
+
+## 3a. Helper Functions
+
+```{r feature-functions}
+# ------------------------------------------------------------------
+# safe_scale(): drop-in replacement for as.numeric(scale()) that
+# handles zero-variance and all-NA vectors gracefully.
+#
+# When a village subset has no variance in a variable (e.g. everyone
+# has the same floor material), scale() returns NaN for every row.
+# Those NaNs are caught by is.na() in igraph_to_statnet() and cause
+# mass vertex deletion. safe_scale() returns 0 instead, which is the
+# correct interpretation: all respondents are at the mean (the only
+# observed value), so their deviation from the mean is zero.
+# A message is emitted so zero-variance variables are visible in output.
+# ------------------------------------------------------------------
+safe_scale <- function(x, label = "") {
+  s <- sd(x, na.rm = TRUE)
+  if (is.na(s) || s == 0) {
+    if (nchar(label) > 0)
+      message("safe_scale: zero/NA variance in '", label,
+              "' — returning 0 for all rows")
+    return(rep(0, length(x)))
+  }
+  as.numeric(scale(x))
+}
+
+# ------------------------------------------------------------------
+# prepare_village_data(): clean, index, and scale one village subset.
+#
+# village_filter: character vector of village names to retain, or
+#                 NULL (default) to keep all villages.
+#
+# Scaling is done WITHIN the filtered subset (within-village SDs).
+# safe_scale() prevents zero-variance NaN propagation.
+# ------------------------------------------------------------------
+prepare_village_data <- function(df, village_filter = NULL) {
+
+  if (!is.null(village_filter)) {
+    df <- df |> filter(village %in% village_filter)
+  }
+
+  vname <- paste(village_filter, collapse = "/")
+
+  # --- ordinal housing material indices (unscaled) ---
+  # NOTE: "ravenala" — not "ravinala" — is the correct spelling.
+  # A misspelling here causes case_when to hit TRUE ~ NA_real_ for all
+  # ravenala rows, producing an all-NA floor index, which propagates
+  # NaN through house_sol and causes mass vertex deletion downstream.
+  df <- df |>
+    mutate(
+      material_wall_index = case_when(
+        material_wall %in% c("bamboo", "rafia", "ravenala",
+                             "mud", "compacted_earth") ~ 0,
+        material_wall == "wood_planks"                 ~ 1,
+        material_wall %in% c("brick_unfired",
+                             "brick_fired")            ~ 2,
+        material_wall == "metal_sheets"                ~ 3,
+        material_wall == "cement"                      ~ 4,
+        TRUE                                           ~ NA_real_
+      ),
+      material_roof_index = case_when(
+        material_roof %in% c("bamboo", "thatch") ~ 0,
+        material_roof == "wood_planks"          ~ 0.5,
+        material_roof == "metal_sheets"          ~ 1,
+        material_roof == "cement"                ~ 2,
+        TRUE                                     ~ NA_real_
+      ),
+      material_floor_index = case_when(
+        material_floor %in% c("dirt", "bamboo",
+                              "rafia", "ravenala") ~ 0,
+        material_floor == "wood_planks"            ~ 1,
+        material_floor == "cement"                 ~ 2,
+        TRUE                                       ~ NA_real_
+      )
+    )
+
+  # --- scale everything within this village subset ---
+  df |>
+    mutate(
+      material_wall_index  = safe_scale(material_wall_index,
+                                        paste(vname, "wall")),
+      material_roof_index  = safe_scale(material_roof_index,
+                                        paste(vname, "roof")),
+      material_floor_index = safe_scale(material_floor_index,
+                                        paste(vname, "floor")),
+      house_sol = safe_scale(
+        material_wall_index + material_roof_index + material_floor_index,
+        paste(vname, "house_sol")
+      ),
+      commercial_goods = safe_scale(
+        own_cellphone + own_tv + own_bicycle + own_refrigerator +
+          own_motorcycle + own_computer + own_generator,
+        paste(vname, "commercial_goods")
+      ),
+      # FIX: rowSums inside mutate gives per-row totals
+      total_animal_interactions = rowSums(
+        across(pet_dogs:dead_goats_sheep), na.rm = TRUE
+      ),
+      employment_category = case_when(
+        grepl("farm_crops|farm_mixed", main_activity)      ~ "Farmer",
+        grepl("student|teacher", main_activity)            ~ "Education",
+        grepl("unemployed|retired_teacher", main_activity) ~ "Unemployed",
+        TRUE                                               ~ "Other"
+      ),
+      # FIX: rowSums gives per-person high-risk exposure counts
+      num_high_risk_exposures = rowSums(
+        across(contains(c("shared_water", "scratched_bitten", "feces",
+                          "dead", "raw_undercooked", "eaten_sick"))),
+        na.rm = TRUE
+      ),
+      high_risk_exposures_binary = ifelse(
+        num_high_risk_exposures == 0L, 0L, 1L
+      ),
+      school_level_numbered = safe_scale(
+        case_when(
+          school_level == "None"      ~ 0L,
+          school_level == "Primary"   ~ 1L,
+          school_level == "Secondary" ~ 2L,
+          school_level == "Higher"    ~ 3L,
+          TRUE                        ~ NA_integer_
+        ),
+        paste(vname, "school_level")
+      ),
+      age              = safe_scale(age,
+                                    paste(vname, "age")),
+      landsize_in_daba = safe_scale(landsize_in_daba,
+                                    paste(vname, "land_size")),
+      household_size   = safe_scale(household_size,
+                                    paste(vname, "household_size"))
+    ) |>
+    rename(grew_vanilla = crops_vanilla)
+}
+```
+
+## 3b. Apply Feature Engineering (Within-Village Scaling)
+
+```{r apply-features}
+merged_df <- bind_rows(
+  prepare_village_data(merged_df_raw,
+                       village_filter = c("Ampandrana", "Andatsakala")),
+  prepare_village_data(merged_df_raw,
+                       village_filter = "Mandena"),
+  prepare_village_data(merged_df_raw,
+                       village_filter = "Sarahandrano")
+) |>
+  mutate(survey_date = as.Date(survey_date))
+
+cat("Total respondents:", length(unique(merged_df$social_netid)), "\n")
+```
+
+# 4. Build Bipartite Networks
+
+## 4a. Animal Lists and Categories
+
+```{r animal-lists}
+animals_full      <- c("rodents", "poultry", "dogs", "cats",
+                        "domestic_pigs", "goats_sheep", "cows",
+                        "wild_birds", "bush_pigs", "lemurs",
+                        "tenrecs", "carnivores")
+animals_high_risk <- animals_full
+
+# Full network: 3 animal categories
+domesticated_animals <- c("poultry", "dogs", "domestic_pigs",
+                           "cows", "goats_sheep", "cats")
+rodent_animals       <- "rodents"
+wild_animals         <- c("bush_pigs", "carnivores", "tenrecs",
+                           "wild_birds", "lemurs")
+
+# High-risk network: domesticated split into two groups
+domesticated_animals_1 <- c("poultry", "domestic_pigs", "cows")
+domesticated_animals_2 <- c("dogs", "goats_sheep", "cats")
+
+village_groups <- list(
+  ampandrana_andatsakala = c("Ampandrana", "Andatsakala"),
+  mandena                = "Mandena",
+  sarahandrano           = "Sarahandrano"
+)
+```
+
+## 4b. Helper: Build Edge List
+
+```{r edge-list-function}
+# ------------------------------------------------------------------
+# Returns a long edge-list (social_netid | animal) for every
+# person-animal pair where at least one contact column is 1.
+# Guards against empty bind_rows() result to prevent arrange() failure.
+# ------------------------------------------------------------------
+build_edge_list <- function(df, animals, col_pattern_fn) {
+  edge_dfs <- lapply(animals, function(animal) {
+    cols <- col_pattern_fn(animal, df)
+    if (length(cols) == 0) return(NULL)
+    contact_mat <- as.data.frame(df[cols])
+    ids <- df$social_netid[rowSums(contact_mat, na.rm = TRUE) > 0]
+    if (length(ids) == 0) return(NULL)
+    data.frame(social_netid = ids, animal = animal,
+               stringsAsFactors = FALSE)
+  })
+
+  result <- bind_rows(edge_dfs)
+  if (nrow(result) == 0 || !"social_netid" %in% names(result)) {
+    return(data.frame(social_netid = character(0),
+                      animal       = character(0),
+                      stringsAsFactors = FALSE))
+  }
+  arrange(result, social_netid)
+}
+
+# Full network: any contact column for this animal
+full_col_pattern <- function(animal, df) {
+  grep(paste0("_", animal, "$|_", animal, "_"), names(df), value = TRUE)
+}
+
+# High-risk network: exposure type precedes animal name
+# e.g. "feces_rodents", "scratched_bitten_dogs", "slaughtered_poultry"
+high_risk_col_pattern <- function(animal, df) {
+  grep(
+    paste0("(feces|shared_water|scratched_bitten|cooked_handled|",
+           "raw_undercooked|eaten_sick|slaughtered)_", animal),
+    names(df), value = TRUE
+  )
+}
+```
+
+## 4c. Helper: Build igraph Bipartite Object
+
+```{r build-graph-function}
+build_bipartite_graph <- function(edge_list, all_humans, all_animals, df) {
+
+  g <- graph_from_data_frame(edge_list, directed = FALSE)
+
+  # Add back isolates for both modes
+  human_isolates  <- setdiff(all_humans,  edge_list$social_netid)
+  animal_isolates <- setdiff(all_animals, edge_list$animal)
+  g <- add_vertices(g, nv = length(human_isolates),  name = human_isolates)
+  g <- add_vertices(g, nv = length(animal_isolates), name = animal_isolates)
+
+  # Set vertex types: TRUE = human, FALSE = animal
+  animal_vids <- which(V(g)$name %in% all_animals)
+  V(g)$type   <- TRUE
+  V(g)$type[animal_vids] <- FALSE
+  human_vids  <- which(V(g)$type)
+
+  # Attach human attributes
+  attach_attr <- function(g, attr_name, col, vids) {
+    vals <- rep(NA, vcount(g))
+    vals[vids] <- col[match(V(g)$name[vids], df$social_netid)]
+    vertex_attr(g, attr_name) <- vals
+    g
+  }
+
+  g <- attach_attr(g, "village",          df$village,               human_vids)
+  g <- attach_attr(g, "age",              df$age,                   human_vids)
+  g <- attach_attr(g, "gender",           df$gender,                human_vids)
+  g <- attach_attr(g, "commercial_goods", df$commercial_goods,      human_vids)
+  g <- attach_attr(g, "house_sol",        df$house_sol,             human_vids)
+  g <- attach_attr(g, "grew_vanilla",     df$grew_vanilla,          human_vids)
+  g <- attach_attr(g, "land_size",        df$landsize_in_daba,      human_vids)
+  g <- attach_attr(g, "household_size",   df$household_size,        human_vids)
+  g <- attach_attr(g, "school_level",     df$school_level_numbered, human_vids)
+
+  V(g)$animal_name <- "Human"
+  V(g)$animal_name[animal_vids] <- V(g)$name[animal_vids]
+
+  g
+}
+```
+
+## 4d. Helper: Village Subgraph
+
+```{r village-subgraph-function}
+# Animal vertices (NA village) are always included regardless of
+# whether they have edges within that village — zero-edge animal
+# nodes are retained as isolates so all 12 types are present
+# in every village network.
+make_village_subgraph <- function(g, village_names) {
+  vids  <- which(V(g)$village %in% village_names | is.na(V(g)$village))
+  sub_g <- subgraph(g, vids)
+  V(sub_g)$degree <- igraph::degree(sub_g)
+  sub_g
+}
+```
+
+## 4e. Helper: Assign Animal Categories
+
+```{r animal-category-function}
+assign_animal_categories <- function(g, category_map) {
+  cats <- rep(NA_character_, vcount(g))
+  for (cat_label in names(category_map)) {
+    cats[V(g)$name %in% category_map[[cat_label]]] <- cat_label
+  }
+  V(g)$animal_category <- cats
+  g
+}
+
+cat_map_full <- list(
+  domesticated = domesticated_animals,
+  rodent       = rodent_animals,
+  wild         = wild_animals
+)
+
+cat_map_high_risk <- list(
+  domesticated_1 = domesticated_animals_1,
+  domesticated_2 = domesticated_animals_2,
+  rodent         = rodent_animals,
+  wild           = wild_animals
+)
+```
+
+## 4f. Build Full Network
+
+```{r build-full-network}
+edge_list_full   <- build_edge_list(merged_df, animals_full,
+                                    full_col_pattern)
+bipartite_graph_full <- build_bipartite_graph(
+  edge_list   = edge_list_full,
+  all_humans  = unique(merged_df$social_netid),
+  all_animals = animals_full,
+  df          = merged_df
+)
+
+bg_full_amp <- assign_animal_categories(
+  make_village_subgraph(bipartite_graph_full,
+                        village_groups$ampandrana_andatsakala),
+  cat_map_full)
+bg_full_man <- assign_animal_categories(
+  make_village_subgraph(bipartite_graph_full, village_groups$mandena),
+  cat_map_full)
+bg_full_sar <- assign_animal_categories(
+  make_village_subgraph(bipartite_graph_full, village_groups$sarahandrano),
+  cat_map_full)
+
+cat("Full network — vertices:", vcount(bipartite_graph_full),
+    "| edges:", ecount(bipartite_graph_full), "\n")
+```
+
+## 4g. Build High-Risk Network
+
+```{r build-high-risk-network}
+for (animal in animals_high_risk) {
+  cols <- high_risk_col_pattern(animal, merged_df)
+  if (length(cols) == 0) {
+    warning("No high-risk columns found for: ", animal)
+    merged_df[[paste0(animal, "_edge_high_risk")]] <- 0L
+  } else {
+    merged_df[[paste0(animal, "_edge_high_risk")]] <-
+      as.integer(rowSums(merged_df[cols], na.rm = TRUE) > 0)
+  }
+}
+
+edge_list_high_risk <- build_edge_list(
+  merged_df, animals_high_risk,
+  function(animal, df) paste0(animal, "_edge_high_risk")
+)
+bipartite_graph_high_risk <- build_bipartite_graph(
+  edge_list   = edge_list_high_risk,
+  all_humans  = unique(merged_df$social_netid),
+  all_animals = animals_high_risk,
+  df          = merged_df
+)
+
+bg_hr_amp <- assign_animal_categories(
+  make_village_subgraph(bipartite_graph_high_risk,
+                        village_groups$ampandrana_andatsakala),
+  cat_map_high_risk)
+bg_hr_man <- assign_animal_categories(
+  make_village_subgraph(bipartite_graph_high_risk,
+                        village_groups$mandena),
+  cat_map_high_risk)
+bg_hr_sar <- assign_animal_categories(
+  make_village_subgraph(bipartite_graph_high_risk,
+                        village_groups$sarahandrano),
+  cat_map_high_risk)
+
+cat("High-risk network — vertices:", vcount(bipartite_graph_high_risk),
+    "| edges:", ecount(bipartite_graph_high_risk), "\n")
+```
+
+---
+
+# 5. Convert igraph to statnet and Run ERGMs
+
+## 5a. Conversion Helper
+
+```{r conversion-function}
+# ------------------------------------------------------------------
+# Converts a bipartite igraph to a statnet network object,
+# re-attaches node attributes, and removes human vertices with
+# missing covariate data.
+#
+# Key design decisions:
+#   - Biadjacency matrix built manually (humans x animals) so that
+#     isolates on both sides are always preserved.
+#     as_biadjacency_matrix() drops isolates and returns the wrong
+#     orientation (animals x humans), reversing b1/b2 mode assignment.
+#   - bipartite = n_humans passed explicitly: statnet b2 = humans,
+#     b1 = animals, matching b2cov()/b1factor() ERGM terms.
+#   - Orientation and dimension stopifnot() checks catch regressions
+#     before attribute attachment or ERGM fitting.
+#   - Animal vertices protected from NA deletion by animal_name
+#     attribute, not hardcoded position.
+# ------------------------------------------------------------------
+igraph_to_statnet <- function(ig) {
+
+  node_df <- data.frame(
+    id               = V(ig)$name,
+    type             = V(ig)$type,
+    village          = V(ig)$village,
+    age              = V(ig)$age,
+    gender           = V(ig)$gender,
+    commercial_goods = V(ig)$commercial_goods,
+    house_sol        = V(ig)$house_sol,
+    grew_vanilla     = V(ig)$grew_vanilla,
+    land_size        = V(ig)$land_size,
+    household_size   = V(ig)$household_size,
+    school_level     = V(ig)$school_level,
+    degree           = V(ig)$degree,
+    animal_name      = V(ig)$animal_name,
+    animal_category  = V(ig)$animal_category,
+    stringsAsFactors = FALSE
+  )
+
+  human_ids  <- node_df$id[ node_df$type]
+  animal_ids <- node_df$id[!node_df$type]
+  n_humans   <- length(human_ids)
+  n_animals  <- length(animal_ids)
+
+  # Build biadjacency matrix: rows = humans, cols = animals
+ # Build biadjacency matrix: rows = ANIMALS (b1), cols = HUMANS (b2)
+# This puts animals in mode 1 and humans in mode 2, matching
+# b1factor("animal_category") and b2cov("age") in all ERGM formulas.
+  biadj <- matrix(
+    0L,
+    nrow     = n_animals,
+    ncol     = n_humans,
+    dimnames = list(animal_ids, human_ids)
+  )
+  
+  el <- igraph::as_edgelist(ig)
+  for (i in seq_len(nrow(el))) {
+    u <- el[i, 1]; v <- el[i, 2]
+    if      (u %in% animal_ids && v %in% human_ids) biadj[u, v] <- 1L
+    else if (v %in% animal_ids && u %in% human_ids) biadj[v, u] <- 1L
+  }
+  
+  stopifnot(
+    "biadj rows are not all animal IDs" =
+      all(rownames(biadj) %in% animal_ids),
+    "biadj cols are not all human IDs" =
+      all(colnames(biadj) %in% human_ids)
+  )
+  
+  # bipartite = n_animals: first n_animals vertices = b1 (animals),
+  # remaining vertices = b2 (humans)
+  sn <- network(biadj, bipartite = n_animals, directed = FALSE)
+
+  stopifnot(
+    "statnet vertex count does not match igraph" =
+      network.size(sn) == n_humans + n_animals,
+    "statnet edge count does not match igraph"   =
+      network.edgecount(sn) == igraph::ecount(ig)
+  )
+
+  cat("Conversion OK:", network.size(sn), "vertices |",
+      network.edgecount(sn), "edges\n")
+
+  statnet_ids     <- as.character(sn %v% "vertex.names")
+  node_df_ordered <- node_df[match(statnet_ids, node_df$id), ]
+
+  if (!isTRUE(all(node_df_ordered$id == statnet_ids))) {
+    mismatch_idx <- which(node_df_ordered$id != statnet_ids |
+                            is.na(node_df_ordered$id))
+    stop("Vertex ID mismatch after reordering!\n",
+         "Positions: ",    paste(mismatch_idx, collapse = ", "), "\n",
+         "statnet wants: ", paste(statnet_ids[mismatch_idx],      collapse = ", "), "\n",
+         "node_df has:   ", paste(node_df_ordered$id[mismatch_idx], collapse = ", "))
+  }
+
+  sn %v% "village"          <- node_df_ordered$village
+  sn %v% "age"              <- node_df_ordered$age
+  sn %v% "gender"           <- node_df_ordered$gender
+  sn %v% "commercial_goods" <- node_df_ordered$commercial_goods
+  sn %v% "house_sol"        <- node_df_ordered$house_sol
+  sn %v% "grew_vanilla"     <- node_df_ordered$grew_vanilla
+  sn %v% "land_size"        <- node_df_ordered$land_size
+  sn %v% "household_size"   <- node_df_ordered$household_size
+  sn %v% "school_level"     <- node_df_ordered$school_level
+  sn %v% "degree"           <- node_df_ordered$degree
+  sn %v% "animal_name"      <- node_df_ordered$animal_name
+  sn %v% "animal_category"  <- node_df_ordered$animal_category
+
+  # Drop humans with missing covariates only — never animal vertices
+  covariate_attrs <- c("age", "gender", "commercial_goods", "house_sol",
+                       "grew_vanilla", "land_size", "household_size",
+                       "school_level")
+  animal_vids <- which(sn %v% "animal_name" != "Human")
+  vertices_with_na <- Reduce(union, lapply(covariate_attrs, function(a)
+    which(is.na(sn %v% a))))
+  vertices_to_drop <- setdiff(vertices_with_na, animal_vids)
+
+  if (length(vertices_to_drop) > 0) {
+    message("Dropping ", length(vertices_to_drop),
+            " human vertices with missing covariates.")
+    sn <- delete.vertices(sn, vertices_to_drop)
+  }
+
+  sn
+}
+```
+
+## 5b. Convert All Networks
+
+```{r convert-networks, message=FALSE, warning=FALSE}
+sn_full_amp <- igraph_to_statnet(bg_full_amp)
+sn_full_man <- igraph_to_statnet(bg_full_man)
+sn_full_sar <- igraph_to_statnet(bg_full_sar)
+
+sn_hr_amp   <- igraph_to_statnet(bg_hr_amp)
+sn_hr_man   <- igraph_to_statnet(bg_hr_man)
+sn_hr_sar   <- igraph_to_statnet(bg_hr_sar)
+```
+
+## 5c. Run ERGMs — Full Network
+
+```{r ergm-full, cache=TRUE}
+ergm_full_amp <- ergm(
+  sn_full_amp ~
+    edges + b2cov("age") + b2factor("gender") +
+    b2cov("commercial_goods") + b2cov("house_sol") +
+    b2factor("grew_vanilla") + b2cov("land_size") +
+    b2cov("household_size") + b2cov("school_level") +
+    b1factor("animal_category") +
+    b1factor("animal_category"):b2cov("commercial_goods") +
+    b1factor("animal_category"):b2cov("house_sol") +
+    b1factor("animal_category"):b2factor("grew_vanilla") +
+    b2degree(2) + b2degree(3) + b2degree(4) +
+    b2degree(5) + b2degree(6),
+  control = control.ergm(seed = 1234)
+)
+
+ergm_full_man <- ergm(
+  sn_full_man ~
+    edges + b2cov("age") + b2factor("gender") +
+    b2cov("commercial_goods") + b2cov("house_sol") +
+    b2factor("grew_vanilla") + b2cov("land_size") +
+    b2cov("household_size") + b2cov("school_level") +
+    b1factor("animal_category") +
+    b1factor("animal_category"):b2cov("commercial_goods") +
+    b1factor("animal_category"):b2cov("house_sol") +
+    b1factor("animal_category"):b2factor("grew_vanilla") +
+    b2degree(2) + b2degree(3) + b2degree(4) +
+    b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
+  control = control.ergm(seed = 123)
+)
+
+ergm_full_sar <- ergm(
+  sn_full_sar ~
+    edges + b2cov("age") + b2factor("gender") +
+    b2cov("commercial_goods") + b2cov("house_sol") +
+    b2factor("grew_vanilla") + b2cov("land_size") +
+    b2cov("household_size") + b2cov("school_level") +
+    b1factor("animal_category") +
+    b1factor("animal_category"):b2cov("commercial_goods") +
+    b1factor("animal_category"):b2cov("house_sol") +
+    b1factor("animal_category"):b2factor("grew_vanilla") +
+    b2degree(3) + b2degree(4) + b2degree(5) +
+    b2degree(6) + b2degree(7) + b2degree(8),
+  control = control.ergm(seed = 1234)
+)
+```
+
+## 5d. Run ERGMs — High-Risk Network
+
+```{r ergm-high-risk, cache=TRUE}
+ergm_hr_amp <- ergm(
+  sn_hr_amp ~
+    edges + b2cov("age") + b2factor("gender") +
+    b2cov("commercial_goods") + b2cov("house_sol") +
+    b2factor("grew_vanilla") + b2cov("land_size") +
+    b2cov("household_size") + b2cov("school_level") +
+    b1factor("animal_category") +
+    b1factor("animal_category"):b2cov("commercial_goods") +
+    b1factor("animal_category"):b2cov("house_sol") +
+    b1factor("animal_category"):b2factor("grew_vanilla") +
+    b2degree(1) + b2degree(2) + b2degree(4) +
+    b2degree(5) + b2degree(6) + b2degree(8),
+  control = control.ergm(seed = 1234)
+)
+
+ergm_hr_man <- ergm(
+  sn_hr_man ~
+    edges + b2cov("age") + b2factor("gender") +
+    b2cov("commercial_goods") + b2cov("house_sol") +
+    b2factor("grew_vanilla") + b2cov("land_size") +
+    b2cov("household_size") + b2cov("school_level") +
+    b1factor("animal_category") +
+    b1factor("animal_category"):b2cov("commercial_goods") +
+    b1factor("animal_category"):b2cov("house_sol") +
+    b1factor("animal_category"):b2factor("grew_vanilla") +
+    b2degree(2) + b2degree(3) + b2degree(4) +
+    b2degree(5) + b2degree(6) + b2degree(7),
+  control = control.ergm(seed = 1234)
+)
+
+ergm_hr_sar <- ergm(
+  sn_hr_sar ~
+    edges + b2cov("age") + b2factor("gender") +
+    b2cov("commercial_goods") + b2cov("house_sol") +
+    b2factor("grew_vanilla") + b2cov("land_size") +
+    b2cov("household_size") + b2cov("school_level") +
+    b1factor("animal_category") +
+    b1factor("animal_category"):b2cov("commercial_goods") +
+    b1factor("animal_category"):b2cov("house_sol") +
+    b1factor("animal_category"):b2factor("grew_vanilla") +
+    b2degree(2) + b2degree(3) + b2degree(4) +
+    b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
+  control = control.ergm(seed = 1234)
+)
+```
+
+## 5e. MCMC Diagnostics and GOF
+
+```{r diagnostics}
+mcmc.diagnostics(ergm_full_amp); ergm:::plot.gof(gof(ergm_full_amp))
+mcmc.diagnostics(ergm_full_man); ergm:::plot.gof(gof(ergm_full_man))
+mcmc.diagnostics(ergm_full_sar); ergm:::plot.gof(gof(ergm_full_sar))
+
+mcmc.diagnostics(ergm_hr_amp); ergm:::plot.gof(gof(ergm_hr_amp))
+mcmc.diagnostics(ergm_hr_man); ergm:::plot.gof(gof(ergm_hr_man))
+mcmc.diagnostics(ergm_hr_sar); ergm:::plot.gof(gof(ergm_hr_sar))
+```
+
+---
+
+# 6. Pool Effect Sizes via Meta-Analysis
+
+## 6a. Helpers
+
+```{r meta-helpers}
+# ------------------------------------------------------------------
+# build_summary_df(): extracts non-degree coefficients from a named
+# list of ergm objects and attaches clean variable labels.
+# ------------------------------------------------------------------
+build_summary_df <- function(ergm_list, term_labels) {
+  bind_rows(lapply(names(ergm_list), function(vname) {
+    coef_df <- as.data.frame(
+      summary(ergm_list[[vname]])$coefficients
+    ) |>
+      rownames_to_column("raw_term") |>
+      filter(!grepl("degree", raw_term))
+
+    if (nrow(coef_df) != length(term_labels))
+      stop("Term count mismatch for village: ", vname,
+           " (", nrow(coef_df), " vs ", length(term_labels), ")")
+
+    coef_df$Variable <- term_labels
+    coef_df$Village  <- vname
+    coef_df
+  })) |>
+    relocate(Variable, Village, .before = Estimate)
+}
+
+# ------------------------------------------------------------------
+# pool_one() / pool_all(): fixed-effects meta-analysis.
+# NOTE: k=3 sites — FE assumes true homogeneity. Consider REML to
+# acknowledge between-village variance.
+# ------------------------------------------------------------------
+pool_one <- function(summary_df, variable) {
+  d   <- summary_df |> filter(Variable == variable)
+  fit <- rma(yi = d$Estimate, sei = d$`Std. Error`, method = "FE")
+  data.frame(Variable = variable, Estimate = as.numeric(fit$beta),
+             Lower = fit$ci.lb, Upper = fit$ci.ub,
+             `Pr(>|z|)` = fit$pval, SE = fit$se,
+             N = nrow(d), check.names = FALSE)
+}
+
+pool_all <- function(summary_df) {
+  vars <- setdiff(unique(summary_df$Variable), "Edges")
+  bind_rows(lapply(vars, \(v) pool_one(summary_df, v))) |>
+    mutate(lower_ci    = Estimate - 1.96        * SE,
+           upper_ci    = Estimate + 1.96        * SE,
+           lower_ci_90 = Estimate - qnorm(0.95) * SE,
+           upper_ci_90 = Estimate + qnorm(0.95) * SE)
+}
+
+# ------------------------------------------------------------------
+# Plotting helpers
+# ------------------------------------------------------------------
+coef_plot <- function(df, var_levels, color_var = NULL) {
+  df$Variable <- factor(df$Variable, levels = rev(var_levels))
+  aes_base <- if (!is.null(color_var))
+    aes(x = Estimate, y = Variable, color = .data[[color_var]])
+  else
+    aes(x = Estimate, y = Variable)
+
+  ggplot(df, aes_base) +
+    geom_point(position = position_dodge(0.5), size = 3) +
+    geom_linerange(aes(xmin = lower_ci,    xmax = upper_ci),
+                   position = position_dodge(0.5), linewidth = 0.4) +
+    geom_linerange(aes(xmin = lower_ci_90, xmax = upper_ci_90),
+                   position = position_dodge(0.5), linewidth = 1.2) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+    labs(x = "Estimated Effect", y = NULL) +
+    theme_classic() +
+    theme(legend.position = "top", axis.title.x = element_text(size = 12))
+}
+
+rename_vars <- function(df) {
+  df |> mutate(Variable = str_replace_all(
+    Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.",
+                "Gender\\[Male\\]" = "Gender[Man]",
+                "Rodents" = "Rodent")))
+}
+
+rename_villages <- function(df) {
+  df |> mutate(Village = recode(Village,
+                                "Ampandrana"   = "A",
+                                "Mandena"      = "M",
+                                "Sarahandrano" = "S"))
+}
+
+add_ci_cols <- function(df, se_col = "SE") {
+  df |> mutate(
+    lower_ci    = Estimate - 1.96        * .data[[se_col]],
+    upper_ci    = Estimate + 1.96        * .data[[se_col]],
+    lower_ci_90 = Estimate - qnorm(0.95) * .data[[se_col]],
+    upper_ci_90 = Estimate + qnorm(0.95) * .data[[se_col]]
+  )
+}
+
+people_levels <- c("House Mat.", "Goods", "Vanilla", "Land Size",
+                   "Household Size", "School Level", "Gender[Man]", "Age")
+```
+
+## 6b. Full Network: Pool and Plot
+
+```{r full-network-pool-plot}
+full_term_labels <- c(
+  "Edges", "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla",
+  "Land Size", "Household Size", "School Level",
+  "Rodents", "Wild",
+  "CGSOL:Rodents", "CGSOL:Wild", "HSOL:Rodents", "HSOL:Wild",
+  "Vanilla:Rodents", "Vanilla:Wild"
+)
+
+summary_df_full <- build_summary_df(
+  list(Ampandrana = ergm_full_amp, Mandena = ergm_full_man,
+       Sarahandrano = ergm_full_sar),
+  full_term_labels
+)
+meta_df_full <- pool_all(summary_df_full)
+print(meta_df_full)
+
+animal_levels_full <- c("Rodent", "Wild",
+                        "Vanilla:Rodent",    "Vanilla:Wild",
+                        "House Mat.:Rodent", "House Mat.:Wild",
+                        "Goods:Rodent",      "Goods:Wild")
+
+# Pooled
+meta_full_r <- meta_df_full |> rename_vars()
+ggarrange(
+  meta_full_r |> filter(Variable %in% people_levels) |>
+    coef_plot(people_levels),
+  meta_full_r |> filter(Variable %in% animal_levels_full) |>
+    coef_plot(animal_levels_full),
+  labels = c("a", "b"), common.legend = TRUE
+)
+
+# By village
+summary_full_r <- summary_df_full |> rename_vars() |>
+  rename_villages() |> add_ci_cols("Std. Error")
+
+ggarrange(
+  summary_full_r |> filter(Variable %in% people_levels) |>
+    coef_plot(people_levels, color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  summary_full_r |> filter(Variable %in% animal_levels_full) |>
+    coef_plot(animal_levels_full, color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  labels = c("a", "b"), common.legend = TRUE
+)
+```
+
+## 6c. High-Risk Network: Pool and Plot
+
+```{r high-risk-pool-plot}
+hr_term_labels <- c(
+  "Edges", "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla",
+  "Land Size", "Household Size", "School Level",
+  "Other Dom.", "Rodents", "Wild",
+  "CGSOL:Other Dom.", "CGSOL:Rodents", "CGSOL:Wild",
+  "HSOL:Other Dom.",  "HSOL:Rodents",  "HSOL:Wild",
+  "Vanilla:Other Dom.", "Vanilla:Rodents", "Vanilla:Wild"
+)
+
+summary_df_hr <- build_summary_df(
+  list(Ampandrana = ergm_hr_amp, Mandena = ergm_hr_man,
+       Sarahandrano = ergm_hr_sar),
+  hr_term_labels
+)
+meta_df_hr <- pool_all(summary_df_hr)
+print(meta_df_hr)
+
+animal_levels_hr <- c(
+  "Other Dom.", "Rodent", "Wild",
+  "Vanilla:Other Dom.", "Vanilla:Rodent",    "Vanilla:Wild",
+  "House Mat.:Other Dom.", "House Mat.:Rodent", "House Mat.:Wild",
+  "Goods:Other Dom.",   "Goods:Rodent",      "Goods:Wild"
+)
+
+# Pooled
+meta_hr_r <- meta_df_hr |> rename_vars()
+ggarrange(
+  meta_hr_r |> filter(Variable %in% people_levels) |>
+    coef_plot(people_levels),
+  meta_hr_r |> filter(Variable %in% animal_levels_hr) |>
+    coef_plot(animal_levels_hr),
+  labels = c("a", "b"), common.legend = TRUE
+)
+
+# By village
+summary_hr_r <- summary_df_hr |> rename_vars() |>
+  rename_villages() |> add_ci_cols("Std. Error")
+
+ggarrange(
+  summary_hr_r |> filter(Variable %in% people_levels) |>
+    coef_plot(people_levels, color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  summary_hr_r |> filter(Variable %in% animal_levels_hr) |>
+    coef_plot(animal_levels_hr, color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  labels = c("a", "b"), common.legend = TRUE
+)
+```
+
+---
+
+# 7. Descriptive Statistics
+
+## 7a. Network-Level Stats Tables
+
+```{r network-stats}
+calculate_network_stats <- function(graph, village_name) {
+  hd <- V(graph)$degree[ V(graph)$type]
+  ad <- V(graph)$degree[!V(graph)$type]
+  data.frame(
+    Village            = village_name,
+    N_Human_Nodes      = sum( V(graph)$type),
+    Mean_Human_Degree  = mean(hd), SD_Human_Degree  = sd(hd),
+    Min_Human_Degree   = min(hd),  Max_Human_Degree = max(hd),
+    N_Animal_Nodes     = sum(!V(graph)$type),
+    Mean_Animal_Degree = mean(ad), SD_Animal_Degree  = sd(ad),
+    Min_Animal_Degree  = min(ad),  Max_Animal_Degree = max(ad),
+    Num_Edges          = igraph::ecount(graph),
+    Density            = igraph::edge_density(graph)
+  )
+}
+
+col_names <- c("Village", "N Human", "Mean Deg.", "SD",
+               "Min", "Max", "N Animal", "Mean Ani. Deg.",
+               "SD", "Min", "Max", "Edges", "Density")
+
+bind_rows(
+  calculate_network_stats(bg_full_man, "Mandena"),
+  calculate_network_stats(bg_full_sar, "Sarahandrano"),
+  calculate_network_stats(bg_full_amp, "Ampandrana/Andatsakala")
+) |> kable(caption = "Full Network — Descriptive Statistics",
+           col.names = col_names, digits = 3, row.names = FALSE)
+
+bind_rows(
+  calculate_network_stats(bg_hr_man, "Mandena"),
+  calculate_network_stats(bg_hr_sar, "Sarahandrano"),
+  calculate_network_stats(bg_hr_amp, "Ampandrana/Andatsakala")
+) |> kable(caption = "High-Risk Network — Descriptive Statistics",
+           col.names = col_names, digits = 3, row.names = FALSE)
+```
+
+## 7b. Flat Edge Data Frames
+
+```{r build-flat-edge-dfs}
+make_flat_edge_df <- function(merged_df, animals, col_pattern_fn,
+                              bipartite_graph) {
+  edge_df <- expand.grid(from = unique(merged_df$social_netid),
+                          to   = animals,
+                          stringsAsFactors = FALSE) |>
+    arrange(from) |> mutate(edge = 0L)
+
+  for (animal in animals) {
+    cols <- col_pattern_fn(animal, merged_df)
+    if (length(cols) == 0) next
+    has_contact <- rowSums(as.data.frame(merged_df[cols]),
+                           na.rm = TRUE) > 0
+    edge_df$edge[edge_df$to == animal &
+                   edge_df$from %in%
+                   merged_df$social_netid[has_contact]] <- 1L
+  }
+
+  vertex_meta <- igraph::as_data_frame(bipartite_graph,
+                                       what = "vertices") |>
+    rename(from = name) |> filter(animal_name == "Human")
+
+  left_join(edge_df, vertex_meta, by = "from")
+}
+
+flat_full <- make_flat_edge_df(
+  merged_df, animals_full, full_col_pattern, bipartite_graph_full
+)
+flat_hr <- make_flat_edge_df(
+  merged_df, animals_high_risk,
+  function(animal, df) paste0(animal, "_edge_high_risk"),
+  bipartite_graph_high_risk
+)
+```
+
+## 7c. Interaction Concentration and Averages
+
+```{r concentration}
+concentration_50 <- function(edge_df, label = "") {
+  pct <- edge_df |>
+    group_by(from) |>
+    summarise(n = sum(edge == 1, na.rm = TRUE), .groups = "drop") |>
+    arrange(desc(n)) |>
+    mutate(cp = row_number() / n(), ce = cumsum(n) / sum(n)) |>
+    filter(ce >= 0.50) |> slice(1) |> pull(cp) * 100
+  cat(label, ": ", round(pct, 1),
+      "% of people account for 50% of interactions\n", sep = "")
+}
+
+avg_interactions <- function(edge_df, label = "") {
+  r <- edge_df |> filter(!is.na(edge)) |>
+    group_by(from) |>
+    summarise(n = sum(edge == 1), .groups = "drop") |>
+    summarise(mean = mean(n), sd = sd(n), n = n())
+  cat(label, ": mean =", round(r$mean, 2),
+      ", SD =", round(r$sd, 2), ", n =", r$n, "\n")
+}
+
+concentration_50(flat_full, "Full network")
+concentration_50(flat_hr,   "High-risk network")
+avg_interactions(flat_full, "Full network")
+avg_interactions(flat_hr,   "High-risk network")
+```
+
+## 7d. SES Predictor Comparisons (t-tests)
+
+```{r ses-ttests}
+ses_ttest <- function(edge_df, ses_var, binary = FALSE) {
+  df <- edge_df |>
+    filter(!is.na(edge), !is.na(.data[[ses_var]])) |>
+    group_by(from) |>
+    summarise(total_edges = sum(edge == 1),
+              ses = first(.data[[ses_var]]), .groups = "drop")
+
+  if (binary) {
+    t.test(total_edges ~ ses, data = df)
+  } else {
+    df <- df |>
+      mutate(rank = percent_rank(ses),
+             quintile = case_when(rank <= 0.20 ~ "bottom_20",
+                                  rank >= 0.80 ~ "top_20",
+                                  TRUE         ~ NA_character_)) |>
+      filter(!is.na(quintile))
+    t.test(total_edges ~ quintile, data = df)
+  }
+}
+
+for (nw in c("full", "hr")) {
+  ed <- if (nw == "full") flat_full else flat_hr
+  cat("\n---", if (nw == "full") "Full" else "High-Risk", "Network ---\n")
+  cat("Land size:\n");        print(ses_ttest(ed, "land_size"))
+  cat("Commercial goods:\n"); print(ses_ttest(ed, "commercial_goods"))
+  cat("House materials:\n");  print(ses_ttest(ed, "house_sol"))
+  cat("Vanilla:\n");          print(ses_ttest(ed, "grew_vanilla",
+                                              binary = TRUE))
+}
+
+```
