@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-```{r setup, message=FALSE, warning=FALSE}
+```{r setup}
 library(tidyverse)
 library(here)
 library(igraph)
@@ -74,25 +74,14 @@ cat("Unique IDs:", length(unique(merged_df_raw$social_netid)), "\n")
 ## 3a. Helper Functions
 
 ```{r feature-functions}
-# ------------------------------------------------------------------
-# safe_scale(): drop-in replacement for as.numeric(scale()) that
-# handles zero-variance and all-NA vectors gracefully.
-#
-# When a village subset has no variance in a variable (e.g. everyone
-# has the same floor material), scale() returns NaN for every row.
-# Those NaNs are caught by is.na() in igraph_to_statnet() and cause
-# mass vertex deletion. safe_scale() returns 0 instead, which is the
-# correct interpretation: all respondents are at the mean (the only
-# observed value), so their deviation from the mean is zero.
-# A message is emitted so zero-variance variables are visible in output.
-# ------------------------------------------------------------------
+
 safe_scale <- function(x, label = "") {
   s <- sd(x, na.rm = TRUE)
   if (is.na(s) || s == 0) {
     if (nchar(label) > 0)
       message("safe_scale: zero/NA variance in '", label,
-              "' — returning 0 for all rows")
-    return(rep(0, length(x)))
+              "' — returning 0 for non-NA rows")
+    return(ifelse(is.na(x), NA_real_, 0))  # was rep(0, length(x))
   }
   as.numeric(scale(x))
 }
@@ -150,12 +139,6 @@ prepare_village_data <- function(df, village_filter = NULL) {
   # --- scale everything within this village subset ---
   df |>
     mutate(
-      material_wall_index  = safe_scale(material_wall_index,
-                                        paste(vname, "wall")),
-      material_roof_index  = safe_scale(material_roof_index,
-                                        paste(vname, "roof")),
-      material_floor_index = safe_scale(material_floor_index,
-                                        paste(vname, "floor")),
       house_sol = safe_scale(
         material_wall_index + material_roof_index + material_floor_index,
         paste(vname, "house_sol")
@@ -253,11 +236,7 @@ village_groups <- list(
 ## 4b. Helper: Build Edge List
 
 ```{r edge-list-function}
-# ------------------------------------------------------------------
-# Returns a long edge-list (social_netid | animal) for every
-# person-animal pair where at least one contact column is 1.
-# Guards against empty bind_rows() result to prevent arrange() failure.
-# ------------------------------------------------------------------
+
 build_edge_list <- function(df, animals, col_pattern_fn) {
   edge_dfs <- lapply(animals, function(animal) {
     cols <- col_pattern_fn(animal, df)
@@ -459,18 +438,6 @@ cat("High-risk network — vertices:", vcount(bipartite_graph_high_risk),
 # Converts a bipartite igraph to a statnet network object,
 # re-attaches node attributes, and removes human vertices with
 # missing covariate data.
-#
-# Key design decisions:
-#   - Biadjacency matrix built manually (humans x animals) so that
-#     isolates on both sides are always preserved.
-#     as_biadjacency_matrix() drops isolates and returns the wrong
-#     orientation (animals x humans), reversing b1/b2 mode assignment.
-#   - bipartite = n_humans passed explicitly: statnet b2 = humans,
-#     b1 = animals, matching b2cov()/b1factor() ERGM terms.
-#   - Orientation and dimension stopifnot() checks catch regressions
-#     before attribute attachment or ERGM fitting.
-#   - Animal vertices protected from NA deletion by animal_name
-#     attribute, not hardcoded position.
 # ------------------------------------------------------------------
 igraph_to_statnet <- function(ig) {
 
@@ -497,10 +464,7 @@ igraph_to_statnet <- function(ig) {
   n_humans   <- length(human_ids)
   n_animals  <- length(animal_ids)
 
-  # Build biadjacency matrix: rows = humans, cols = animals
- # Build biadjacency matrix: rows = ANIMALS (b1), cols = HUMANS (b2)
-# This puts animals in mode 1 and humans in mode 2, matching
-# b1factor("animal_category") and b2cov("age") in all ERGM formulas.
+  
   biadj <- matrix(
     0L,
     nrow     = n_animals,
@@ -522,8 +486,6 @@ igraph_to_statnet <- function(ig) {
       all(colnames(biadj) %in% human_ids)
   )
   
-  # bipartite = n_animals: first n_animals vertices = b1 (animals),
-  # remaining vertices = b2 (humans)
   sn <- network(biadj, bipartite = n_animals, directed = FALSE)
 
   stopifnot(
@@ -571,8 +533,11 @@ igraph_to_statnet <- function(ig) {
   vertices_to_drop <- setdiff(vertices_with_na, animal_vids)
 
   if (length(vertices_to_drop) > 0) {
-    message("Dropping ", length(vertices_to_drop),
-            " human vertices with missing covariates.")
+    cat("Dropped vertices:\n")
+    print((sn %v% "vertex.names")[vertices_to_drop])
+
+    cat("Dropping", length(vertices_to_drop),
+       "human vertices with missing covariates.\n")
     sn <- delete.vertices(sn, vertices_to_drop)
   }
 
@@ -582,7 +547,7 @@ igraph_to_statnet <- function(ig) {
 
 ## 5b. Convert All Networks
 
-```{r convert-networks, message=FALSE, warning=FALSE}
+```{r convert-networks, message=TRUE, warning=FALSE}
 sn_full_amp <- igraph_to_statnet(bg_full_amp)
 sn_full_man <- igraph_to_statnet(bg_full_man)
 sn_full_sar <- igraph_to_statnet(bg_full_sar)
@@ -637,7 +602,7 @@ ergm_full_sar <- ergm(
     b1factor("animal_category"):b2factor("grew_vanilla") +
     b2degree(3) + b2degree(4) + b2degree(5) +
     b2degree(6) + b2degree(7) + b2degree(8),
-  control = control.ergm(seed = 1234)
+  control = control.ergm(seed = 123)
 )
 ```
 
@@ -671,7 +636,7 @@ ergm_hr_man <- ergm(
     b1factor("animal_category"):b2factor("grew_vanilla") +
     b2degree(2) + b2degree(3) + b2degree(4) +
     b2degree(5) + b2degree(6) + b2degree(7),
-  control = control.ergm(seed = 1234)
+  control = control.ergm(seed = 123)
 )
 
 ergm_hr_sar <- ergm(
@@ -709,10 +674,7 @@ mcmc.diagnostics(ergm_hr_sar); ergm:::plot.gof(gof(ergm_hr_sar))
 ## 6a. Helpers
 
 ```{r meta-helpers}
-# ------------------------------------------------------------------
-# build_summary_df(): extracts non-degree coefficients from a named
-# list of ergm objects and attaches clean variable labels.
-# ------------------------------------------------------------------
+
 build_summary_df <- function(ergm_list, term_labels) {
   bind_rows(lapply(names(ergm_list), function(vname) {
     coef_df <- as.data.frame(
@@ -1006,11 +968,34 @@ avg_interactions <- function(edge_df, label = "") {
   cat(label, ": mean =", round(r$mean, 2),
       ", SD =", round(r$sd, 2), ", n =", r$n, "\n")
 }
+# Extract the human vertex IDs that were retained in each statnet network
+# (after dropping vertices with missing covariates in igraph_to_statnet())
+get_retained_humans <- function(sn) {
+  ids <- sn %v% "vertex.names"
+  animal_names <- sn %v% "animal_name"
+  ids[animal_names == "Human"]
+}
 
-concentration_50(flat_full, "Full network")
-concentration_50(flat_hr,   "High-risk network")
-avg_interactions(flat_full, "Full network")
-avg_interactions(flat_hr,   "High-risk network")
+# Union of humans retained across all three village ERGMs
+full_ergm_humans <- Reduce(union, list(
+  get_retained_humans(sn_full_amp),
+  get_retained_humans(sn_full_man),
+  get_retained_humans(sn_full_sar)
+))
+
+hr_ergm_humans <- Reduce(union, list(
+  get_retained_humans(sn_hr_amp),
+  get_retained_humans(sn_hr_man),
+  get_retained_humans(sn_hr_sar)
+))
+
+flat_full_ergm <- flat_full |> filter(from %in% full_ergm_humans)
+flat_hr_ergm   <- flat_hr   |> filter(from %in% hr_ergm_humans)
+
+concentration_50(flat_full_ergm, "Full network")
+concentration_50(flat_hr_ergm,   "High-risk network")
+avg_interactions(flat_full_ergm, "Full network")
+avg_interactions(flat_hr_ergm,   "High-risk network")
 ```
 
 ## 7d. SES Predictor Comparisons (t-tests)
@@ -1037,7 +1022,7 @@ ses_ttest <- function(edge_df, ses_var, binary = FALSE) {
 }
 
 for (nw in c("full", "hr")) {
-  ed <- if (nw == "full") flat_full else flat_hr
+  ed <- if (nw == "full") flat_full_ergm else flat_hr_ergm
   cat("\n---", if (nw == "full") "Full" else "High-Risk", "Network ---\n")
   cat("Land size:\n");        print(ses_ttest(ed, "land_size"))
   cat("Commercial goods:\n"); print(ses_ttest(ed, "commercial_goods"))
