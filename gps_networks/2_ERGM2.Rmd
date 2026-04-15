@@ -786,6 +786,233 @@ edge_density <- num_edges / max_edges
 plot(net_anda)
 ```
 
+```{r}
+library(network)
+library(bipartite)
+
+# ── This script assumes you have already run 2_ERGM2.Rmd and have
+#    net_mand, net_anda, net_sara loaded in your environment.
+#
+#    Network structure (from how they were built):
+#      matrix.type = "bipartite", rows = humans (id2), cols = animals (id1)
+#      => vertices 1 : net%n%"bipartite"          are HUMANS  (mode 1)
+#         vertices (bipartite+1) : network.size() are ANIMALS (mode 2)
+#
+#    Vertex attributes used:
+#      "type"           : "People" or "Animals"
+#      "animal_species" : raw species string (Cow, Pig, Cat, Dog, ...)
+# ──────────────────────────────────────────────────────────────────
+
+# ── Colors (Okabe-Ito colorblind-safe) ────────────────────────────
+OI_orange  <- "#E69F00"   # Cow (Zebu)
+OI_skyblue <- "#56B4E9"   # Pig
+OI_green   <- "#009E73"   # Cat
+OI_yellow  <- "#F0E442"   # Dog
+OI_blue    <- "#0072B2"   # Humans
+
+species_display <- c(
+  Cow   = "Zebu (Cow)",
+  Pig   = "Pig",
+  Cat   = "Cat",
+  Dog   = "Dog"
+)
+
+species_col <- c(
+  Cow   = OI_orange,
+  Pig   = OI_skyblue,
+  Cat   = OI_green,
+  Dog   = OI_yellow,
+  other = OI_purple
+)
+
+species_order <- c("Cow", "Pig", "Cat", "Dog", "other")
+
+
+# ── Helper: extract animals × humans binary matrix ───────────────
+build_web_matrix_statnet <- function(net) {
+
+  bp     <- net %n% "bipartite"
+  n      <- network.size(net)
+  vnames <- network.vertex.names(net)
+
+  human_idx  <- seq_len(bp)
+  animal_idx <- seq(bp + 1, n)
+
+  human_names  <- vnames[human_idx]
+  animal_names <- vnames[animal_idx]
+
+  adj <- t(as.matrix(net, matrix.type = "adjacency"))
+  mat <- adj[animal_names, human_names, drop = FALSE]
+
+  raw_spp <- net %v% "animal_species"
+  names(raw_spp) <- vnames
+  row_spp <- raw_spp[animal_names]
+  row_spp[is.na(row_spp) | !(row_spp %in% names(species_col))] <- "other"
+
+  ord         <- order(match(row_spp, species_order))
+  mat         <- mat[ord, , drop = FALSE]
+  row_spp_ord <- row_spp[ord]
+
+  counts  <- table(row_spp_ord)
+  counter <- setNames(rep(0L, length(species_order)), species_order)
+  display_rows <- character(nrow(mat))
+  for (i in seq_len(nrow(mat))) {
+    sp  <- row_spp_ord[i]
+    counter[sp] <- counter[sp] + 1L
+    lbl <- species_display[sp]
+    if (counts[sp] > 1) lbl <- paste0(lbl, " ", counter[sp])
+    display_rows[i] <- lbl
+  }
+  rownames(mat) <- display_rows
+
+  mat
+}
+
+
+# ── Draw one bipartite web panel ──────────────────────────────────
+draw_web_statnet <- function(net, village_title) {
+
+  mat <- build_web_matrix_statnet(net)
+
+  bp       <- net %n% "bipartite"
+  n        <- network.size(net)
+  vnames   <- network.vertex.names(net)
+  n_humans <- bp
+
+  animal_names <- vnames[seq(bp + 1, n)]
+  raw_spp      <- net %v% "animal_species"
+  names(raw_spp) <- vnames
+  row_spp      <- raw_spp[animal_names]
+  row_spp[is.na(row_spp) | !(row_spp %in% names(species_col))] <- "other"
+
+  ord         <- order(match(row_spp, species_order))
+  row_spp_ord <- row_spp[ord]
+
+  lower_cols        <- species_col[row_spp_ord]
+  names(lower_cols) <- rownames(mat)
+
+  plotweb(
+    mat,
+    sorting       = "normal",
+    horizontal    = TRUE,
+    srt           = 0,
+    lower_color   = lower_cols,
+    higher_color  = paste0(OI_blue, "80"),
+    lower_border  = "same",
+    higher_border = OI_blue,
+    lower_labels  = rep("", nrow(mat)),
+    higher_labels = rep("", ncol(mat)),
+    link_color    = "lower",
+    link_alpha    = 0.03,
+    curved_links  = TRUE,
+    text_size     = 0.72,
+    lab_distance  = 0.06,
+    box_size      = 0.08,
+    spacing       = 0.25,
+    mar           = c(1, 1, 2.5, 1)
+  )
+
+  title(
+    main     = village_title,
+    sub      = paste0("n = ", n_humans, " participants"),
+    cex.main = 1.0, font.main = 2,
+    cex.sub  = 0.75, col.sub  = "grey40"
+  )
+}
+
+
+# ── Legend panel ──────────────────────────────────────────────────
+draw_legend_statnet <- function() {
+
+  par(mar = c(2, 0, 2, 1))
+  plot.new()
+  plot.window(xlim = c(0, 1), ylim = c(0, 1))
+
+  leg_spp  <- names(species_display)
+  leg_cols <- species_col[leg_spp]
+  leg_labs <- species_display[leg_spp]
+
+  legend(
+    x         = 0.02, y = 0.97,
+    bty       = "n",
+    title     = expression(bold("Animal species")),
+    title.adj = 0,
+    legend    = c(leg_labs, "Humans"),
+    fill      = c(leg_cols, OI_blue),
+    border    = NA,
+    cex       = 0.88,
+    y.intersp = 1.5,
+    x.intersp = 0.8,
+    xpd       = TRUE
+  )
+}
+
+
+# ── Render: all 3 villages combined ───────────────────────────────
+# png("networks_bipartite_GPS.png", width = 3200, height = 1000, res = 160)
+layout(matrix(1:4, nrow = 1), widths = c(3, 3, 3, 1.8))
+par(oma = c(0, 0, 3, 0))
+
+draw_web_statnet(net_mand, "Village M")
+draw_web_statnet(net_anda, "Village A")
+draw_web_statnet(net_sara, "Village S")
+draw_legend_statnet()
+
+mtext("GPS Spatial Networks",
+      outer = TRUE, side = 3, font = 2, cex = 1.3, line = 0.8)
+# dev.off()
+
+
+# ── One plot per village ───────────────────────────────────────────
+villages <- list(
+  list(net = net_mand, title = "Mandena",      file = "net_mand_bipartite.png"),
+  list(net = net_anda, title = "Andatsakala",  file = "net_anda_bipartite.png"),
+  list(net = net_sara, title = "Sarahandrano", file = "net_sara_bipartite.png")
+)
+
+for (village in villages) {
+  tryCatch({
+    png(village$file, width = 8, height = 10, res = 300)       # wider canvas
+    layout(matrix(1:2, nrow = 1), widths = c(3, 2))            # wider legend column
+    par(oma = c(0, 0, 3, 0), mar = c(2, 1, 2, 1))             # explicit inner margins
+    draw_web_statnet(village$net, village$title)
+    par(mar = c(2, 0, 2, 1))                                    # tight margins for legend
+    draw_legend_statnet()
+    mtext(village$title, outer = TRUE, side = 3,
+          font = 2, cex = 1.3, line = 0.8)
+    dev.off()
+  }, error = function(e) {
+    dev.off()
+    message("Failed on: ", village$title, " — ", e$message)
+  })
+}
+
+
+# Diagnostic - run this and share the output
+bp <- net_mand %n% "bipartite"
+n  <- network.size(net_mand)
+vnames <- network.vertex.names(net_mand)
+
+cat("bipartite index:", bp, "\n")
+cat("network size:", n, "\n")
+cat("length of vnames:", length(vnames), "\n")
+cat("first 3 vnames:", head(vnames, 3), "\n")
+cat("last 3 vnames:", tail(vnames, 3), "\n")
+
+adj <- as.matrix(net_mand, matrix.type = "adjacency")
+cat("adj dimensions:", dim(adj), "\n")
+cat("adj rownames (first 3):", head(rownames(adj), 3), "\n")
+cat("adj colnames (first 3):", head(colnames(adj), 3), "\n")
+
+human_names  <- vnames[seq_len(bp)]
+animal_names <- vnames[seq(bp + 1, n)]
+cat("human_names in rownames(adj)?", all(human_names %in% rownames(adj)), "\n")
+cat("animal_names in rownames(adj)?", all(animal_names %in% rownames(adj)), "\n")
+
+
+
+
+```
 
 
 

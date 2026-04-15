@@ -17,6 +17,8 @@ metadata <- read.csv("~/Documents/Manuscripts/SAVA_Network/Data/Survey_Demograph
 vi <- read.csv("~/Downloads/Volume_Intersection.csv")
 animal_dat <- read.csv("~/Documents/Projects/SAVA_multilayer/cleaned_tables/Survey_Animal_Health.csv") %>% rename(id1="animal_id")
 
+
+
 ```
 
 ```{r Construct Networks}
@@ -59,16 +61,16 @@ vi_anda_edge_m <- vi_adj9 %>% filter(village =="Andatsakala") %>% select(id1, id
 
 mean(vi_mand_edge_m$weight)
 median(vi_mand_edge_m$weight)
-quantile(vi_mand_edge_m$weight, 0.95)
+quantile(vi_mand_edge_m$weight, 0.85)
 
 
 mean(vi_sara_edge_m$weight)
 median(vi_sara_edge_m$weight)
-quantile(vi_sara_edge_m$weight, 0.95)
+quantile(vi_sara_edge_m$weight, 0.85)
 
 mean(na.omit(vi_anda_edge_m$weight))
 median(na.omit(vi_anda_edge_m$weight))
-quantile(na.omit(vi_anda_edge_m$weight), 0.95)
+quantile(na.omit(vi_anda_edge_m$weight), 0.85)
 
 mean(na.omit(vi_adj9$weight))
 median(na.omit(vi_adj9$weight))
@@ -83,6 +85,14 @@ vi_mand_edge_m3 <- vi_mand_edge_m %>% mutate(weight = ifelse(weight < 9.593401  
 vi_sara_edge_m3 <- vi_sara_edge_m %>% mutate(weight = ifelse(weight < 13.6283 , 0, weight))
 vi_anda_edge_m3 <- vi_anda_edge_m %>% mutate(weight = ifelse(weight < 9.575529  , 0, weight))
 
+
+vi_mand_edge_m4 <- vi_mand_edge_m %>% mutate(weight = ifelse(weight <2.686435  , 0, weight))
+vi_sara_edge_m4 <- vi_sara_edge_m %>% mutate(weight = ifelse(weight < 3.608667  , 0, weight))
+vi_anda_edge_m4 <- vi_anda_edge_m %>% mutate(weight = ifelse(weight < 2.247862  , 0, weight))
+
+
+
+
 ```
 
 ```{r Construct Networks}
@@ -92,9 +102,13 @@ write.csv(vi_sara_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_network
 write.csv(vi_anda_edge_m2, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda.csv")
 
 
-write.csv(vi_mand_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand_20.csv")
-write.csv(vi_sara_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara_20.csv")
-write.csv(vi_anda_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda_20.csv")
+write.csv(vi_mand_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand_5.csv")
+write.csv(vi_sara_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara_5.csv")
+write.csv(vi_anda_edge_m3, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda_5.csv")
+
+write.csv(vi_mand_edge_m4, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand_15.csv")
+write.csv(vi_sara_edge_m4, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_sara_15.csv")
+write.csv(vi_anda_edge_m4, "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_anda_15.csv")
 
 
 vi_mand_edge <- read.csv( "~/Documents/GitHub/human_animal_networks/gps_networks/outputs/gps_edge_mand.csv")
@@ -117,6 +131,145 @@ ggplot(data= edges_total, aes(x=weight, color= Village, fill=Village))+
   geom_vline(xintercept = 4.7, linetype= "dashed", color="green")+
   geom_vline(xintercept = 6.25, linetype= "dashed", color="blue")+
   geom_vline(xintercept = 4.22, linetype= "dashed", color="red")
+
+
+vline_df <- data.frame(
+  Village = rep(c("M", "S", "A"), times = 3),
+  xintercept = c(9.593401, 13.6283, 9.575529, 4.7, 6.25, 4.22, 2.686435, 3.608667, 2.247862),
+  threshold = c("5%", "5%", "5%", "10%", "10%", "10%", "15%", "15%", "15%"),
+  line_id = rep(c("M", "S", "A"), times = 3))
+
+
+ggplot(edges_total, aes(x = weight)) +
+  geom_density(aes(color = Village), alpha = 0.1) +
+  geom_vline(
+    data = vline_df,
+    aes(xintercept = xintercept, color = line_id),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  facet_wrap(~Village)
+
+
+village_m_plot <- ggplot(edges_total[edges_total$Village=="M",], aes(x = weight)) +
+  geom_density( alpha = 0.1) +
+  geom_vline(
+    data = vline_df[vline_df$line_id=="M",],
+    aes(xintercept = xintercept, color = threshold),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  ylab("Density")+
+  xlab("Weight")+
+  labs(color = "Threshold Type")
+
+
+village_a_plot <- ggplot(edges_total[edges_total$Village=="A",], aes(x = weight)) +
+  geom_density( alpha = 0.1) +
+  geom_vline(
+    data = vline_df[vline_df$line_id=="A",],
+    aes(xintercept = xintercept, color = threshold),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  ylab("Density")+
+  xlab("Weight")+
+  labs(color = "Threshold Type")
+
+
+
+village_s_plot <- ggplot(edges_total[edges_total$Village=="S",], aes(x = weight)) +
+  geom_density( alpha = 0.1) +
+  geom_vline(
+    data = vline_df[vline_df$line_id=="S",],
+    aes(xintercept = xintercept, color = threshold),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  ylab("Density")+
+  xlab("Weight")+
+  labs(color = "Threshold Type")
+
+density_plot <- ggarrange(village_a_plot, village_m_plot, village_s_plot, ncol =1, labels = c("A","M", "S"), common.legend = TRUE)
+
+
+
+
+village_m_plot2 <- ggplot(edges_total[edges_total$Village=="M",], aes(x = weight)) +
+  geom_histogram(aes(y = after_stat(density)),  alpha = 0.4) +
+  geom_vline(
+    data = vline_df[vline_df$line_id=="M",],
+    aes(xintercept = xintercept, color = threshold),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  ylab("Density") +
+  xlab("Weight") +
+  labs(color = "Threshold Type")
+
+
+village_a_plot2 <- ggplot(edges_total[edges_total$Village=="A",], aes(x = weight)) +
+  geom_histogram(aes(y = after_stat(density)), alpha = 0.4) +
+  geom_vline(
+    data = vline_df[vline_df$line_id=="A",],
+    aes(xintercept = xintercept, color = threshold),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  ylab("Density") +
+  xlab("Weight") +
+  labs(color = "Threshold Type")
+
+
+village_s_plot2 <- ggplot(edges_total[edges_total$Village=="S",], aes(x = weight)) +
+  geom_histogram(aes(y = after_stat(density)), alpha = 0.4) +
+  geom_vline(
+    data = vline_df[vline_df$line_id=="S",],
+    aes(xintercept = xintercept, color = threshold),
+    linetype = "dashed"
+  ) +
+  theme_classic() +
+  ylab("Density") +
+  xlab("Weight") +
+  labs(color = "Threshold Type")
+
+hist_plot <- ggarrange(village_a_plot2, village_m_plot2, village_s_plot2,
+          ncol = 1, labels = c("A","M","S"), common.legend = TRUE)
+
+
+ggarrange(density_plot, hist_plot, ncol =2, labels = c("a)", "b)"))
+
+
+
+m_hist_zoom <- ggplot(vi_mand_edge_m, aes(x = weight)) +
+  geom_histogram(aes(y = after_stat(density)), alpha = 0.4) +
+  theme_classic() +
+  ylab("Density") +
+  xlab("Weight") +
+  labs(color = "Threshold Type")+
+  xlim(0,1)+
+  ylim(0,1.7)
+
+a_hist_zoom <- ggplot(vi_anda_edge_m, aes(x = weight)) +
+  geom_histogram(aes(y = after_stat(density)), alpha = 0.4) +
+  theme_classic() +
+  ylab("Density") +
+  xlab("Weight") +
+  labs(color = "Threshold Type")+
+  xlim(0,1)+
+  ylim(0,1.7)
+
+s_hist_zoom <- ggplot(vi_sara_edge_m, aes(x = weight)) +
+  geom_histogram(aes(y = after_stat(density)), alpha = 0.4) +
+  theme_classic() +
+  ylab("Density") +
+  xlab("Weight") +
+  labs(color = "Threshold Type")+
+  xlim(0,1)+
+  ylim(0,1.7)
+
+
+ggarrange(a_hist_zoom, m_hist_zoom, s_hist_zoom, ncol =1, labels = c("A","M", "S"), common.legend = TRUE)
 
 ```
 
