@@ -18,11 +18,11 @@ getwd()
 setwd(wd_path)
 data_path <- 'outputs/'
 
-gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand_5.csv")) %>% select(-X)
-gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda_5.csv")) %>% select(-X)
-gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara_5.csv")) %>% select(-X)
+gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand_15.csv")) %>% select(-X)
+gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda_15.csv")) %>% select(-X)
+gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara_15.csv")) %>% select(-X)
 
-metadata <- read.csv("~/Documents/GitHub/human_animal_networks/gps_networks/metadata2.csv")
+metadata <- read.csv("~/Documents/human_animal_networks/gps_networks/metadata2.csv")
 animal_dat <- read.csv("~/Documents/Projects/SAVA_multilayer/cleaned_tables/Survey_Animal_Health.csv") %>% rename(id1="animal_id")
 
 metadata$school_level[metadata$school_level=="None"] <- 1
@@ -453,7 +453,7 @@ ergm_mandena <- ergm(net_mand ~ edges + b1cov("age")+b1factor("gender")+b1factor
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex") + b1degree(0) +b1degree(4), 
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+b1degree(10) + b1degree(11), 
                  control = control.ergm(seed = 123))
 
 mandena_summary <-summary(ergm_mandena)
@@ -467,7 +467,7 @@ ergm_sara <- ergm(net_sara ~ edges + b1cov("age")+b1factor("gender")+b1factor("v
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex"), 
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+b1degree(9)+b1degree(10)+b1degree(11)+b1degree(12)+b1degree(13)+b1degree(14)+b1degree(15)+b1degree(16) + b1degree(17) +b1degree(18) + b1degree(19) + b1degree(20) + b1degree(21) + b1degree(22) + b1degree(23) + b1degree(24) + b1degree(25) + b1degree(26) + b1degree(), 
                  control = control.ergm(seed = 123))
 
 sara_summary <-summary(ergm_sara)
@@ -480,9 +480,8 @@ max(vif.ergm(ergm_sara))
 ergm_anda <- ergm(net_anda ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
                         b1cov("land")+b1cov("size")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
-                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +b1degree(0)+b1degree(1)+
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+
-                  b1degree(2)+b1degree(3)+b1degree(7)+b1degree(8), 
+                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species")+
+                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+b1degree(13)+b1degree(14)+b1degree(15)+b1degree(16)+b1degree(17) +b1degree(18) + b1degree(19) +b1degree(20) +b1degree(21) +b1degree(22) +b1degree(23) + b1degree(24) + b1degree(25)+b1degree(26)+b1degree(27)+b1degree(28), 
                  control = control.ergm(seed = 123))
 
 anda_summary <-summary(ergm_anda)
@@ -661,126 +660,11 @@ animals_plot <- ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, col
 
 ggarrange(people_plot, animals_plot, labels = c("a", "b"), common.legend = TRUE)
 
-write.csv(summary_df, "summary_df_spatial_sensitivity.csv")
+write.csv(summary_df, "summary_df_spatial_sensitivity_b.csv")
 
 
 
 
 ```
-
-```{r}
-library(network)
-library(sna)  # For degree calculation
-
-# Set up a 1-row, 3-column layout and remove margins
-par(mfrow = c(1, 3), mar = c(2, 0, 2, 0))  # Top margin for labels
-
-
-# --- Plot net_anda ---
-node_colors <- net_anda %v% "color"
-node_sizes <- net_anda %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_anda, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-mtext("A", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
-
-
-# --- Plot net_mand ---
-node_colors <- net_mand %v% "color"
-node_sizes <- net_mand %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_mand, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-mtext("M", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
-
-# --- Plot net_sara ---
-node_colors <- net_sara %v% "color"
-node_sizes <- net_sara %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_sara, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-mtext("S", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
-
-```
-
-```{r}
-library(network)
-library(sna)  # For degree calculation
-
-# Set up a 1-row, 3-column layout and remove margins
-par(mfrow = c(1, 3), mar = c(0, 0, 0, 0))
-
-# --- Plot net_mand ---
-node_colors <- net_mand %v% "color"
-node_sizes <- net_mand %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_mand, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-
-# --- Plot net_anda ---
-node_colors <- net_anda %v% "color"
-node_sizes <- net_anda %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_anda, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-
-# --- Plot net_sara ---
-node_colors <- net_sara %v% "color"
-node_sizes <- net_sara %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_sara, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-
-```
-
-```{r}
-
-library(sna)
-
-net_anda
-
-mean((sna::degree(net_anda))[1:331])
-sd((sna::degree(net_anda))[1:331])
-
-mean((sna::degree(net_anda))[332:451])
-sd((sna::degree(net_anda))[332:451])
-
-num_edges <- network.edgecount(net_anda)  # Number of edges
-num_nodes <- network.size(net_anda)       # Number of nodes
-max_edges <- (num_nodes * (num_nodes - 1)) / 2  # Max edges for undirected
-
-# Edge density calculation
-edge_density <- num_edges / max_edges
-
-
-plot(net_anda)
-```
-
-
-
 
 
