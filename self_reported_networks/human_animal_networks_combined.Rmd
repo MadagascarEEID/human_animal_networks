@@ -575,6 +575,9 @@ ergm_full_amp <- ergm(
   control = control.ergm(seed = 1234)
 )
 
+#save(ergm_full_amp, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_a.RData")
+
+
 ergm_full_man <- ergm(
   sn_full_man ~
     edges + b2cov("age") + b2factor("gender") +
@@ -590,6 +593,9 @@ ergm_full_man <- ergm(
   control = control.ergm(seed = 123)
 )
 
+#save(ergm_full_man, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_m.RData")
+
+
 ergm_full_sar <- ergm(
   sn_full_sar ~
     edges + b2cov("age") + b2factor("gender") +
@@ -604,6 +610,9 @@ ergm_full_sar <- ergm(
     b2degree(6) + b2degree(7) + b2degree(8),
   control = control.ergm(seed = 123)
 )
+
+#save(ergm_full_sar, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_s.RData")
+
 ```
 
 ## 5d. Run ERGMs — High-Risk Network
@@ -624,6 +633,9 @@ ergm_hr_amp <- ergm(
   control = control.ergm(seed = 1234)
 )
 
+#save(ergm_hr_amp, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_a.RData")
+
+
 ergm_hr_man <- ergm(
   sn_hr_man ~
     edges + b2cov("age") + b2factor("gender") +
@@ -639,6 +651,9 @@ ergm_hr_man <- ergm(
   control = control.ergm(seed = 123)
 )
 
+#save(ergm_hr_man, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_m.RData")
+
+
 ergm_hr_sar <- ergm(
   sn_hr_sar ~
     edges + b2cov("age") + b2factor("gender") +
@@ -653,18 +668,20 @@ ergm_hr_sar <- ergm(
     b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
   control = control.ergm(seed = 1234)
 )
+
+#save(ergm_hr_sar, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_s.RData")
 ```
 
 ## 5e. MCMC Diagnostics and GOF
 
 ```{r diagnostics}
-mcmc.diagnostics(ergm_full_amp); ergm:::plot.gof(gof(ergm_full_amp))
-mcmc.diagnostics(ergm_full_man); ergm:::plot.gof(gof(ergm_full_man))
-mcmc.diagnostics(ergm_full_sar); ergm:::plot.gof(gof(ergm_full_sar))
+vif.ergm(ergm_full_amp); mcmc.diagnostics(ergm_full_amp); ergm:::plot.gof(gof(ergm_full_amp))
+vif.ergm(ergm_full_man); mcmc.diagnostics(ergm_full_man); ergm:::plot.gof(gof(ergm_full_man))
+vif.ergm(ergm_full_sar); mcmc.diagnostics(ergm_full_sar); ergm:::plot.gof(gof(ergm_full_sar))
 
-mcmc.diagnostics(ergm_hr_amp); ergm:::plot.gof(gof(ergm_hr_amp))
-mcmc.diagnostics(ergm_hr_man); ergm:::plot.gof(gof(ergm_hr_man))
-mcmc.diagnostics(ergm_hr_sar); ergm:::plot.gof(gof(ergm_hr_sar))
+vif.ergm(ergm_hr_amp); mcmc.diagnostics(ergm_hr_amp); ergm:::plot.gof(gof(ergm_hr_amp))
+vif.ergm(ergm_hr_man); mcmc.diagnostics(ergm_hr_man); ergm:::plot.gof(gof(ergm_hr_man))
+vif.ergm(ergm_hr_sar); mcmc.diagnostics(ergm_hr_sar); ergm:::plot.gof(gof(ergm_hr_sar))
 ```
 
 ---
