@@ -782,6 +782,12 @@ summary_df_full <- build_summary_df(
        Sarahandrano = ergm_full_sar),
   full_term_labels
 )
+
+summary(ergm_full_amp)
+summary(ergm_full_man)
+summary(ergm_full_sar)
+
+
 meta_df_full <- pool_all(summary_df_full)
 print(meta_df_full)
 
@@ -832,6 +838,11 @@ summary_df_hr <- build_summary_df(
        Sarahandrano = ergm_hr_sar),
   hr_term_labels
 )
+
+summary(ergm_hr_amp)
+summary(ergm_hr_man)
+summary(ergm_hr_sar)
+
 meta_df_hr <- pool_all(summary_df_hr)
 print(meta_df_hr)
 

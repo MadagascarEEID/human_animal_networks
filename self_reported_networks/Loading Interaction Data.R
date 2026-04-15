@@ -38,6 +38,7 @@ merged_df_mandena <- suppressWarnings(merged_df |>
                                 mutate(material_roof_index = 0) %>%
                                 mutate(material_roof_index = if_else(material_roof == "bamboo", 0, material_roof_index)) %>%
                                 mutate(material_roof_index = if_else(material_roof == "thatch", 0, material_roof_index)) %>%
+                                mutate(material_roof_index = if_else(material_roof == "wood_planks", 0.5, material_roof_index)) %>%
                                 mutate(material_roof_index = if_else(material_roof == "metal_sheets", 1, material_roof_index)) %>%
                                 mutate(material_roof_index = if_else(material_roof == "cement", 2, material_roof_index)) %>%
                                 mutate(material_roof_index = scale(material_roof_index)) |> 
@@ -47,7 +48,7 @@ merged_df_mandena <- suppressWarnings(merged_df |>
                                 mutate(material_floor_index = if_else(material_floor == "dirt", 0, material_floor_index)) %>%
                                 mutate(material_floor_index = if_else(material_floor == "bamboo", 0, material_floor_index)) %>%
                                 mutate(material_floor_index = if_else(material_floor == "rafia", 0, material_floor_index)) %>%
-                                mutate(material_floor_index = if_else(material_floor == "ravinala", 0, material_floor_index)) %>%
+                                mutate(material_floor_index = if_else(material_floor == "ravenala", 0, material_floor_index)) %>%
                                 mutate(material_floor_index = if_else(material_floor == "wood_planks", 1, material_floor_index)) %>%
                                 mutate(material_floor_index = if_else(material_floor == "cement", 2, material_floor_index)) %>%
                                 mutate(material_floor_index = scale(material_floor_index)) |> 
@@ -62,13 +63,13 @@ merged_df_mandena <- suppressWarnings(merged_df |>
                               mutate(commercial_goods = scale(commercial_goods)) |> 
                               
                              # other things
-                                mutate(total_animal_interactions = sum(c_across(pet_dogs:dead_goats_sheep)), na.rm=TRUE) |> 
+                                mutate(total_animal_interactions = rowSums(across(pet_dogs:dead_goats_sheep), na.rm=TRUE)) |> 
                                 mutate(employment_category = if_else(grepl("farm_crops", main_activity) | grepl("farm_mixed", main_activity), "Farmer", 
                                                                      ifelse(grepl("student", main_activity) | grepl("teacher", main_activity), "Education",
                                                                             ifelse(grepl("unemployed", main_activity) | grepl("retired_teacher", main_activity), "Unemployed",
                                                                                   "Other")))) |> 
-                                mutate(num_high_risk_exposures = sum(across(contains(c("shared_water","scratched_bitten","feces", "dead",
-                                                                                       "raw_undercooked", "eaten_sick"))), na.rm = TRUE)) |> 
+                                mutate(num_high_risk_exposures = rowSums(across(contains(c("shared_water","scratched_bitten","feces", "dead",
+                                                                                       "raw_undercooked", "eaten_sick", "slaughtered"))), na.rm = TRUE)) |> 
                                 mutate(high_risk_exposures_binary = ifelse(num_high_risk_exposures == 0L, 0L, 1L)) |> 
                                 mutate(school_level_numbered = ifelse(school_level == "None", 0L, 
                                                                       ifelse(school_level == "Primary", 1L,
@@ -79,9 +80,7 @@ merged_df_mandena <- suppressWarnings(merged_df |>
                               mutate(age = scale(age)) |> 
                               mutate(landsize_in_daba = scale(landsize_in_daba)) |> 
                               mutate(household_size = scale(household_size)) |> 
-                              mutate(school_level_numbered = scale(school_level_numbered)) |> 
-                              
-  select(-na.rm))
+                              mutate(school_level_numbered = scale(school_level_numbered)))
 
 merged_df_sarahandrano <- suppressWarnings(merged_df |> 
                                         filter(village == "Sarahandrano") |> 
@@ -102,6 +101,8 @@ merged_df_sarahandrano <- suppressWarnings(merged_df |>
                                         mutate(material_roof_index = 0) %>%
                                         mutate(material_roof_index = if_else(material_roof == "bamboo", 0, material_roof_index)) %>%
                                         mutate(material_roof_index = if_else(material_roof == "thatch", 0, material_roof_index)) %>%
+                                          mutate(material_roof_index = if_else(material_roof == "wood_planks", 0.5, material_roof_index)) %>%
+                                          
                                         mutate(material_roof_index = if_else(material_roof == "metal_sheets", 1, material_roof_index)) %>%
                                         mutate(material_roof_index = if_else(material_roof == "cement", 2, material_roof_index)) %>%
                                         mutate(material_roof_index = scale(material_roof_index)) |> 
@@ -111,7 +112,7 @@ merged_df_sarahandrano <- suppressWarnings(merged_df |>
                                         mutate(material_floor_index = if_else(material_floor == "dirt", 0, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "bamboo", 0, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "rafia", 0, material_floor_index)) %>%
-                                        mutate(material_floor_index = if_else(material_floor == "ravinala", 0, material_floor_index)) %>%
+                                        mutate(material_floor_index = if_else(material_floor == "ravenala", 0, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "wood_planks", 1, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "cement", 2, material_floor_index)) %>%
                                         mutate(material_floor_index = scale(material_floor_index)) |> 
@@ -126,13 +127,13 @@ merged_df_sarahandrano <- suppressWarnings(merged_df |>
                                         mutate(commercial_goods = scale(commercial_goods)) |> 
                                         
                                         # other things
-                                        mutate(total_animal_interactions = sum(c_across(pet_dogs:dead_goats_sheep)), na.rm=TRUE) |> 
+                                        mutate(total_animal_interactions = rowSums(across(pet_dogs:dead_goats_sheep)), na.rm=TRUE)) |> 
                                         mutate(employment_category = if_else(grepl("farm_crops", main_activity) | grepl("farm_mixed", main_activity), "Farmer", 
                                                                              ifelse(grepl("student", main_activity) | grepl("teacher", main_activity), "Education",
                                                                                     ifelse(grepl("unemployed", main_activity) | grepl("retired_teacher", main_activity), "Unemployed",
                                                                                            "Other")))) |> 
-                                        mutate(num_high_risk_exposures = sum(across(contains(c("shared_water","scratched_bitten","feces", "dead",
-                                                                                               "raw_undercooked", "eaten_sick"))), na.rm = TRUE)) |> 
+                                        mutate(num_high_risk_exposures = rowSums(across(contains(c("shared_water","scratched_bitten","feces", "dead",
+                                                                                               "raw_undercooked", "eaten_sick", "slaughtered"))), na.rm = TRUE)) |> 
                                         mutate(high_risk_exposures_binary = ifelse(num_high_risk_exposures == 0L, 0L, 1L)) |> 
                                         mutate(school_level_numbered = ifelse(school_level == "None", 0L, 
                                                                               ifelse(school_level == "Primary", 1L,
@@ -144,8 +145,7 @@ merged_df_sarahandrano <- suppressWarnings(merged_df |>
                                         mutate(landsize_in_daba = scale(landsize_in_daba)) |> 
                                         mutate(household_size = scale(household_size)) |> 
                                         mutate(school_level_numbered = scale(school_level_numbered)) |> 
-                                        
-                                        select(-na.rm))
+                                         select(-na.rm)
 
 merged_df_ampandrana_andatsakala <- suppressWarnings(merged_df |> 
                                         filter(grepl("Andatsakala", village) |grepl("Ampandrana", village)) |> 
@@ -166,6 +166,8 @@ merged_df_ampandrana_andatsakala <- suppressWarnings(merged_df |>
                                         mutate(material_roof_index = 0) %>%
                                         mutate(material_roof_index = if_else(material_roof == "bamboo", 0, material_roof_index)) %>%
                                         mutate(material_roof_index = if_else(material_roof == "thatch", 0, material_roof_index)) %>%
+                                          mutate(material_roof_index = if_else(material_roof == "wood_planks", 0.5, material_roof_index)) %>%
+                                          
                                         mutate(material_roof_index = if_else(material_roof == "metal_sheets", 1, material_roof_index)) %>%
                                         mutate(material_roof_index = if_else(material_roof == "cement", 2, material_roof_index)) %>%
                                         mutate(material_roof_index = scale(material_roof_index)) |> 
@@ -175,7 +177,7 @@ merged_df_ampandrana_andatsakala <- suppressWarnings(merged_df |>
                                         mutate(material_floor_index = if_else(material_floor == "dirt", 0, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "bamboo", 0, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "rafia", 0, material_floor_index)) %>%
-                                        mutate(material_floor_index = if_else(material_floor == "ravinala", 0, material_floor_index)) %>%
+                                        mutate(material_floor_index = if_else(material_floor == "ravenala", 0, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "wood_planks", 1, material_floor_index)) %>%
                                         mutate(material_floor_index = if_else(material_floor == "cement", 2, material_floor_index)) %>%
                                         mutate(material_floor_index = scale(material_floor_index)) |> 
@@ -190,13 +192,13 @@ merged_df_ampandrana_andatsakala <- suppressWarnings(merged_df |>
                                         mutate(commercial_goods = scale(commercial_goods)) |> 
                                         
                                         # other things
-                                        mutate(total_animal_interactions = sum(c_across(pet_dogs:dead_goats_sheep)), na.rm=TRUE) |> 
+                                        mutate(total_animal_interactions = rowSums(across(pet_dogs:dead_goats_sheep)), na.rm=TRUE)) |> 
                                         mutate(employment_category = if_else(grepl("farm_crops", main_activity) | grepl("farm_mixed", main_activity), "Farmer", 
                                                                              ifelse(grepl("student", main_activity) | grepl("teacher", main_activity), "Education",
                                                                                     ifelse(grepl("unemployed", main_activity) | grepl("retired_teacher", main_activity), "Unemployed",
                                                                                            "Other")))) |> 
-                                        mutate(num_high_risk_exposures = sum(across(contains(c("shared_water","scratched_bitten","feces", "dead",
-                                                                                               "raw_undercooked", "eaten_sick"))), na.rm = TRUE)) |> 
+                                        mutate(num_high_risk_exposures = rowSums(across(contains(c("shared_water","scratched_bitten","feces", "dead",
+                                                                                               "raw_undercooked", "eaten_sick", "slaughtered"))), na.rm = TRUE)) |> 
                                         mutate(high_risk_exposures_binary = ifelse(num_high_risk_exposures == 0L, 0L, 1L)) |> 
                                         mutate(school_level_numbered = ifelse(school_level == "None", 0L, 
                                                                               ifelse(school_level == "Primary", 1L,
@@ -208,9 +210,12 @@ merged_df_ampandrana_andatsakala <- suppressWarnings(merged_df |>
                                         mutate(landsize_in_daba = scale(landsize_in_daba)) |> 
                                         mutate(household_size = scale(household_size)) |> 
                                         mutate(school_level_numbered = scale(school_level_numbered)) |> 
-                                        
-                                        select(-na.rm))
+                                        select(-na.rm)
+                                                
+
 merged_df <-rbind(merged_df_ampandrana_andatsakala, merged_df_mandena, merged_df_sarahandrano)
+cat("N after scaling/bind:", nrow(merged_df), "\n")
+table(merged_df$village)
 
 merged_df$survey_date <- as.Date(merged_df$survey_date)
 

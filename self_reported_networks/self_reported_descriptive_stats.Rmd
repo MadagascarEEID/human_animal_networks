@@ -214,6 +214,10 @@ animal_interaction_data_cleaned <- animal_interaction_data |>
 
 merged_df <- inner_join(demographic_health_data_cleaned, animal_interaction_data_cleaned, by = "social_netid")
 
+
+cat("N after inner_join:", nrow(merged_df), "\n")
+cat("Unique IDs:", length(unique(merged_df$social_netid)), "\n")
+
 merged_df <- suppressWarnings(merged_df |> 
                                         mutate(material_wall_index = 0) %>%
                                         mutate(material_wall_index = if_else(material_wall == "bamboo", 0, material_wall_index)) %>%
@@ -274,6 +278,14 @@ merged_df <- suppressWarnings(merged_df |>
                                 
 merged_df$survey_date <- as.Date(merged_df$survey_date)
 
+before_drop <- nrow(merged_df)
+dropped_ids <- merged_df |> 
+  filter(is.na(house_sol) | is.na(commercial_goods) | is.na(grew_vanilla) | 
+         is.na(age) | is.na(landsize_in_daba) | is.na(household_size) | 
+         is.na(school_level_numbered) | is.na(gender)) |> 
+  pull(social_netid)
+cat("N dropped:", length(dropped_ids), "\n")
+cat("Dropped IDs:", paste(dropped_ids, collapse = ", "), "\n")
 
 # BUILDING HIGH RISK NETWORK
 

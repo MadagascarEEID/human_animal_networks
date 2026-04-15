@@ -1,5 +1,5 @@
 library(tidyverse);library(metafor);library(ggpubr); library(grid)  
-source("~/Desktop/human_animal_networks/self_reported_networks/pooling effect sizes self-report.R")
+# source("~/Desktop/human_animal_networks/self_reported_networks/pooling effect sizes self-report.R")
 summary_df <- read.csv("~/Desktop/human_animal_networks/gps_networks/outputs/summary_df_spatial.csv")
 
 
@@ -161,7 +161,7 @@ combined_plot <- ggarrange(
       unit = "mm"
     )
   )
-
+# 
 # ggsave(
 #   "combined_plot.pdf",
 #   plot = combined_plot,
