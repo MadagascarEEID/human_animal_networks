@@ -1,0 +1,746 @@
+---
+title: "Supplementary Analysis: Multilevel Logistic Regression"
+author: "Lev Kolinski"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(igraph)
+library(glmmTMB)
+library(broom.mixed)
+library(metafor)
+library(ggpubr)
+library(kableExtra)
+
+set.seed(1234)
+```
+
+---
+
+# 1. Load Raw Data
+
+```{r load-data}
+demographic_health_data <- read.csv(
+  "/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Demographic_Health.csv"
+)
+animal_interaction_data <- read.csv(
+  "/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Animal_Interaction.csv"
+)
+```
+
+---
+
+# 2. Clean and Merge Data
+
+```{r clean-merge}
+demographic_health_data_cleaned <- demographic_health_data |>
+  mutate(across(
+    starts_with(c("own_", "banking", "grew_crops", "crops")),
+    ~ ifelse(. == "Yes", 1L, 0L)
+  )) |>
+  select(
+    survey_date, social_netid, village, age, gender, school_level,
+    household_size, main_activity,
+    starts_with("material_"), starts_with("own_"),
+    crops_vanilla, landsize_in_daba
+  )
+
+animal_interaction_data_cleaned <- animal_interaction_data |>
+  mutate(across(-starts_with("social_netid"), ~ ifelse(. == "Yes", 1L, 0L))) |>
+  select(-starts_with("symptoms"), -starts_with("action_"),
+         -contains("frequency"))
+
+merged_df_raw <- inner_join(
+  demographic_health_data_cleaned,
+  animal_interaction_data_cleaned,
+  by = "social_netid"
+)
+
+cat("N after inner_join:", nrow(merged_df_raw), "\n")
+cat("Unique IDs:", length(unique(merged_df_raw$social_netid)), "\n")
+```
+
+---
+
+# 3. Feature Engineering
+
+```{r feature-functions}
+safe_scale <- function(x, label = "") {
+  s <- sd(x, na.rm = TRUE)
+  if (is.na(s) || s == 0) {
+    if (nchar(label) > 0)
+      message("safe_scale: zero/NA variance in '", label,
+              "' - returning 0 for non-NA rows")
+    return(ifelse(is.na(x), NA_real_, 0))
+  }
+  as.numeric(scale(x))
+}
+
+ 
+prepare_village_data <- function(df, village_filter = NULL) {
+
+  if (!is.null(village_filter)) {
+    df <- df |> filter(village %in% village_filter)
+  }
+
+  vname <- paste(village_filter, collapse = "/")
+
+  df <- df |>
+    mutate(
+      material_wall_index = case_when(
+        material_wall %in% c("bamboo", "rafia", "ravenala",
+                             "mud", "compacted_earth") ~ 0,
+        material_wall == "wood_planks"                 ~ 1,
+        material_wall %in% c("brick_unfired",
+                             "brick_fired")            ~ 2,
+        material_wall == "metal_sheets"                ~ 3,
+        material_wall == "cement"                      ~ 4,
+        TRUE                                           ~ NA_real_
+      ),
+      material_roof_index = case_when(
+        material_roof %in% c("bamboo", "thatch") ~ 0,
+        material_roof == "wood_planks"            ~ 0.5,
+        material_roof == "metal_sheets"           ~ 1,
+        material_roof == "cement"                 ~ 2,
+        TRUE                                      ~ NA_real_
+      ),
+      material_floor_index = case_when(
+        material_floor %in% c("dirt", "bamboo",
+                              "rafia", "ravenala") ~ 0,
+        material_floor == "wood_planks"            ~ 1,
+        material_floor == "cement"                 ~ 2,
+        TRUE                                       ~ NA_real_
+      )
+    )
+
+  df |>
+    mutate(
+      house_sol = safe_scale(
+        material_wall_index + material_roof_index + material_floor_index,
+        paste(vname, "house_sol")
+      ),
+      commercial_goods = safe_scale(
+        own_cellphone + own_tv + own_bicycle + own_refrigerator +
+          own_motorcycle + own_computer + own_generator,
+        paste(vname, "commercial_goods")
+      ),
+      total_animal_interactions = rowSums(
+        across(pet_dogs:dead_goats_sheep), na.rm = TRUE
+      ),
+      employment_category = case_when(
+        grepl("farm_crops|farm_mixed", main_activity)      ~ "Farmer",
+        grepl("student|teacher", main_activity)            ~ "Education",
+        grepl("unemployed|retired_teacher", main_activity) ~ "Unemployed",
+        TRUE                                               ~ "Other"
+      ),
+      num_high_risk_exposures = rowSums(
+        across(contains(c("shared_water", "scratched_bitten", "feces",
+                          "dead", "raw_undercooked", "eaten_sick"))),
+        na.rm = TRUE
+      ),
+      high_risk_exposures_binary = ifelse(
+        num_high_risk_exposures == 0L, 0L, 1L
+      ),
+      school_level_numbered = safe_scale(
+        case_when(
+          school_level == "None"      ~ 0L,
+          school_level == "Primary"   ~ 1L,
+          school_level == "Secondary" ~ 2L,
+          school_level == "Higher"    ~ 3L,
+          TRUE                        ~ NA_integer_
+        ),
+        paste(vname, "school_level")
+      ),
+      age              = safe_scale(age,              paste(vname, "age")),
+      landsize_in_daba = safe_scale(landsize_in_daba, paste(vname, "land_size")),
+      household_size   = safe_scale(household_size,   paste(vname, "household_size"))
+    ) |>
+    rename(grew_vanilla = crops_vanilla)
+}
+```
+
+```{r apply-features}
+merged_df <- bind_rows(
+  prepare_village_data(merged_df_raw, village_filter = c("Ampandrana", "Andatsakala")),
+  prepare_village_data(merged_df_raw, village_filter = "Mandena"),
+  prepare_village_data(merged_df_raw, village_filter = "Sarahandrano")
+) |>
+  mutate(survey_date = as.Date(survey_date))
+
+cat("Total respondents:", length(unique(merged_df$social_netid)), "\n")
+```
+
+---
+
+# 4. Animal Lists and Categories
+
+```{r animal-lists}
+animals_full      <- c("rodents", "poultry", "dogs", "cats",
+                       "domestic_pigs", "goats_sheep", "cows",
+                       "wild_birds", "bush_pigs", "lemurs",
+                       "tenrecs", "carnivores")
+animals_high_risk <- animals_full
+
+# Full network: 3 animal categories
+domesticated_animals <- c("poultry", "dogs", "domestic_pigs",
+                           "cows", "goats_sheep", "cats")
+rodent_animals       <- "rodents"
+wild_animals         <- c("bush_pigs", "carnivores", "tenrecs",
+                           "wild_birds", "lemurs")
+
+# High-risk network: domesticated split into two groups
+domesticated_animals_1 <- c("poultry", "domestic_pigs", "cows")
+domesticated_animals_2 <- c("dogs", "goats_sheep", "cats")
+
+village_groups <- list(
+  ampandrana_andatsakala = c("Ampandrana", "Andatsakala"),
+  mandena                = "Mandena",
+  sarahandrano           = "Sarahandrano"
+)
+```
+
+---
+
+# 5. Build Flat Edge Data Frames
+
+```{r col-pattern-functions}
+full_col_pattern <- function(animal, df) {
+  grep(paste0("_", animal, "$|_", animal, "_"), names(df), value = TRUE)
+}
+
+high_risk_col_pattern <- function(animal, df) {
+  grep(
+    paste0("(feces|shared_water|scratched_bitten|cooked_handled|",
+           "raw_undercooked|eaten_sick|slaughtered)_", animal),
+    names(df), value = TRUE
+  )
+}
+```
+
+```{r build-high-risk-cols}
+# Create binary high-risk edge columns on merged_df
+for (animal in animals_high_risk) {
+  cols <- high_risk_col_pattern(animal, merged_df)
+  if (length(cols) == 0) {
+    warning("No high-risk columns found for: ", animal)
+    merged_df[[paste0(animal, "_edge_high_risk")]] <- 0L
+  } else {
+    merged_df[[paste0(animal, "_edge_high_risk")]] <-
+      as.integer(rowSums(merged_df[cols], na.rm = TRUE) > 0)
+  }
+}
+```
+
+```{r build-flat-edge-dfs}
+# ------------------------------------------------------------------
+# make_flat_edge_df(): builds a long-format data frame with one row
+# per person-animal dyad, with all human-level covariates attached.
+# This is the input format for the MLMs.
+# ------------------------------------------------------------------
+make_flat_edge_df <- function(df, animals, col_pattern_fn) {
+  edge_df <- expand.grid(
+    from = unique(df$social_netid),
+    to   = animals,
+    stringsAsFactors = FALSE
+  ) |>
+    arrange(from) |>
+    mutate(edge = 0L)
+
+  for (animal in animals) {
+    cols <- col_pattern_fn(animal, df)
+    if (length(cols) == 0) next
+    has_contact <- rowSums(as.data.frame(df[cols]), na.rm = TRUE) > 0
+    edge_df$edge[edge_df$to == animal &
+                   edge_df$from %in% df$social_netid[has_contact]] <- 1L
+  }
+
+  # Attach human-level covariates
+  human_meta <- df |>
+    select(social_netid, village, age, gender, commercial_goods,
+           house_sol, grew_vanilla, landsize_in_daba, household_size,
+           school_level_numbered) |>
+    rename(
+      from         = social_netid,
+      land_size    = landsize_in_daba,
+      school_level = school_level_numbered
+    )
+
+  left_join(edge_df, human_meta, by = "from")
+}
+
+flat_full <- make_flat_edge_df(merged_df, animals_full, full_col_pattern)
+flat_hr   <- make_flat_edge_df(
+  merged_df, animals_high_risk,
+  function(animal, df) paste0(animal, "_edge_high_risk")
+)
+```
+
+---
+
+# 6. Identify Participants Retained After NA Removal
+
+This mirrors the vertex-dropping step in `igraph_to_statnet()` from the main
+pipeline, ensuring the MLM sample matches the ERGM sample exactly.
+
+```{r retained-humans}
+covariate_cols <- c("age", "gender", "commercial_goods", "house_sol",
+                    "grew_vanilla", "landsize_in_daba", "household_size",
+                    "school_level_numbered")
+
+complete_humans <- merged_df |>
+  filter(if_all(all_of(covariate_cols), ~ !is.na(.))) |>
+  pull(social_netid) |>
+  unique()
+
+cat("Participants with complete covariates:", length(complete_humans), "\n")
+cat("Participants dropped due to missing covariates:",
+    length(unique(merged_df$social_netid)) - length(complete_humans), "\n")
+
+flat_full_ergm <- flat_full |> filter(from %in% complete_humans)
+flat_hr_ergm   <- flat_hr   |> filter(from %in% complete_humans)
+```
+
+---
+
+# 7. Prepare Dyad-Level Data for MLMs
+
+```{r prep-dyad-data}
+# Full network: 3 animal categories, reference = domesticated
+flat_full_ergm <- flat_full_ergm |>
+  mutate(
+    animal_category = case_when(
+      to %in% domesticated_animals ~ "domesticated",
+      to %in% rodent_animals       ~ "rodent",
+      to %in% wild_animals         ~ "wild",
+      TRUE                         ~ NA_character_
+    ),
+    animal_category = relevel(factor(animal_category), ref = "domesticated"),
+    gender          = factor(gender),
+    grew_vanilla    = factor(grew_vanilla)
+  )
+
+# High-risk network: 4 animal categories, reference = domesticated_1
+flat_hr_ergm <- flat_hr_ergm |>
+  mutate(
+    animal_category = case_when(
+      to %in% domesticated_animals_1 ~ "domesticated_1",
+      to %in% domesticated_animals_2 ~ "domesticated_2",
+      to %in% rodent_animals         ~ "rodent",
+      to %in% wild_animals           ~ "wild",
+      TRUE                           ~ NA_character_
+    ),
+    animal_category = relevel(factor(animal_category), ref = "domesticated_1"),
+    gender          = factor(gender),
+    grew_vanilla    = factor(grew_vanilla)
+  )
+```
+
+---
+
+# 8. Fit Multilevel Logistic Regression Models
+
+## 8a. Model-Fitting Helper
+
+```{r mlm-helper}
+# ------------------------------------------------------------------
+# run_mlm(): fits a mixed-effects logistic regression for one village
+# subset using glmmTMB. Participant ID (from) is included as a random
+# intercept to account for non-independence of dyads from the same
+# individual. Animal category interactions with commercial_goods,
+# house_sol, and grew_vanilla mirror the b1factor():b2cov() /
+# b1factor():b2factor() ERGM terms from the main analysis.
+# glmmTMB is preferred over lme4::glmer for better convergence and
+# more robust SE estimation with complex interaction structures.
+# ------------------------------------------------------------------
+run_mlm <- function(df, village_names, label) {
+  d <- df |>
+    filter(village %in% village_names) |>
+    filter(!is.na(animal_category))
+
+  fit <- glmmTMB(
+    edge ~
+      age + gender + commercial_goods + house_sol +
+      grew_vanilla + land_size + household_size + school_level +
+      animal_category +
+      animal_category:commercial_goods +
+      animal_category:house_sol +
+      animal_category:grew_vanilla +
+      (1 | from),
+    data   = d,
+    family = binomial
+  )
+  
+  print(AIC(fit))
+
+  tidy(fit, conf.int = TRUE, exponentiate = FALSE) |>
+    filter(effect == "fixed") |>
+    mutate(Village = label)
+}
+```
+
+## 8b. Full Network Models
+
+```{r mlm-full, cache=FALSE, message=TRUE, warning=FALSE}
+mlm_full_amp <- run_mlm(flat_full_ergm, c("Ampandrana", "Andatsakala"), "Ampandrana")
+mlm_full_man <- run_mlm(flat_full_ergm, "Mandena",                       "Mandena")
+mlm_full_sar <- run_mlm(flat_full_ergm, "Sarahandrano",                  "Sarahandrano")
+
+mlm_full_summary <- bind_rows(mlm_full_amp, mlm_full_man, mlm_full_sar)
+```
+
+## 8c. High-Risk Network Models
+
+```{r mlm-hr, cache=FALSE, message=TRUE, warning=FALSE}
+mlm_hr_amp <- run_mlm(flat_hr_ergm, c("Ampandrana", "Andatsakala"), "Ampandrana")
+mlm_hr_man <- run_mlm(flat_hr_ergm, "Mandena",                       "Mandena")
+mlm_hr_sar <- run_mlm(flat_hr_ergm, "Sarahandrano",                  "Sarahandrano")
+
+mlm_hr_summary <- bind_rows(mlm_hr_amp, mlm_hr_man, mlm_hr_sar)
+```
+
+---
+
+# 9. Pool Effect Sizes via Meta-Analysis
+
+```{r pool-helper}
+# ------------------------------------------------------------------
+# pool_mlm(): fixed-effects meta-analysis across villages.
+# Identical FE approach to the ERGM pooling in the main analysis.
+# ------------------------------------------------------------------
+pool_mlm <- function(summary_df, drop_intercept = TRUE) {
+  df <- summary_df
+  if (drop_intercept) df <- df |> filter(term != "(Intercept)")
+
+  df |>
+    group_by(term) |>
+    group_modify(~ {
+      fit <- rma(yi = .x$estimate, sei = .x$std.error, method = "FE")
+      data.frame(
+        Estimate = as.numeric(fit$beta),
+        SE       = fit$se,
+        Lower    = fit$ci.lb,
+        Upper    = fit$ci.ub,
+        p        = fit$pval,
+        N        = nrow(.x)
+      )
+    }) |>
+    ungroup() |>
+    mutate(
+      lower_ci    = Estimate - 1.96        * SE,
+      upper_ci    = Estimate + 1.96        * SE,
+      lower_ci_90 = Estimate - qnorm(0.95) * SE,
+      upper_ci_90 = Estimate + qnorm(0.95) * SE
+    )
+}
+```
+
+```{r pool-results}
+meta_mlm_full <- pool_mlm(mlm_full_summary)
+meta_mlm_hr   <- pool_mlm(mlm_hr_summary)
+
+print(meta_mlm_full)
+print(meta_mlm_hr)
+```
+
+---
+
+# 10. Plots
+
+## 10a. Plotting Helper
+
+```{r plot-helper}
+# ------------------------------------------------------------------
+# rename_mlm_terms(): cleans raw glmmTMB term names into the same
+# human-readable labels used in the ERGM plots in the main analysis.
+# ------------------------------------------------------------------
+rename_mlm_terms <- function(df) {
+  df |>
+    mutate(term = term |>
+      str_replace_all("animal_categorydomesticated_2", "Other Dom.") |>
+      str_replace_all("animal_categoryrodent",         "Rodent") |>
+      str_replace_all("animal_categorywild",           "Wild") |>
+      str_replace_all("commercial_goods",              "Goods") |>
+      str_replace_all("house_sol",                     "House Mat.") |>
+      str_replace_all("grew_vanilla1",                 "Vanilla") |>
+      str_replace_all("genderMale",                    "Gender[Man]") |>
+      str_replace_all("land_size",                     "Land Size") |>
+      str_replace_all("household_size",                "Household Size") |>
+      str_replace_all("school_level",                  "School Level") |>
+      str_replace_all("^age$",                         "Age") |>
+      # Clean up interaction separators
+      str_replace_all(":",                             ":")
+    )
+}
+
+mlm_coef_plot <- function(df, var_levels, title = NULL, color_var = NULL) {
+  d <- df |>
+    filter(term %in% var_levels) |>
+    mutate(term = factor(term, levels = rev(var_levels)))
+
+  aes_base <- if (!is.null(color_var))
+    aes(x = Estimate, y = term, color = .data[[color_var]])
+  else
+    aes(x = Estimate, y = term)
+
+  ggplot(d, aes_base) +
+    geom_point(position = position_dodge(0.5), size = 3) +
+    geom_linerange(aes(xmin = lower_ci, xmax = upper_ci),
+                   position = position_dodge(0.5), linewidth = 0.4) +
+    geom_linerange(aes(xmin = lower_ci_90, xmax = upper_ci_90),
+                   position = position_dodge(0.5), linewidth = 1.2) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+    labs(x = "Estimated Effect", y = NULL, title = title) +
+    theme_classic() +
+    theme(legend.position = "top", axis.title.x = element_text(size = 12))
+}
+
+# Explicit term orderings matching the ERGM plots exactly
+# Full network (3 animal categories)
+people_levels_full <- c("House Mat.", "Goods", "Vanilla", "Land Size",
+                        "Household Size", "School Level", "Gender[Man]", "Age")
+animal_levels_full <- c("Rodent", "Wild",
+                        "Vanilla:Rodent",    "Vanilla:Wild",
+                        "House Mat.:Rodent", "House Mat.:Wild",
+                        "Goods:Rodent",      "Goods:Wild")
+
+# High-risk network (4 animal categories, adds Other Dom.)
+people_levels_hr <- c("House Mat.", "Goods", "Vanilla", "Land Size",
+                      "Household Size", "School Level", "Gender[Man]", "Age")
+animal_levels_hr <- c("Other Dom.", "Rodent", "Wild",
+                      "Vanilla:Other Dom.", "Vanilla:Rodent",    "Vanilla:Wild",
+                      "House Mat.:Other Dom.", "House Mat.:Rodent", "House Mat.:Wild",
+                      "Goods:Other Dom.",      "Goods:Rodent",      "Goods:Wild")
+```
+
+## 10b. Full Network - Pooled
+
+```{r plot-full-pooled, fig.width=10, fig.height=6}
+meta_mlm_full_r <- meta_mlm_full |> rename_mlm_terms()
+
+ggarrange(
+  mlm_coef_plot(meta_mlm_full_r, people_levels_full, title = "Human Attributes"),
+  mlm_coef_plot(meta_mlm_full_r, animal_levels_full, title = "Animal Attributes"),
+  labels = c("a", "b"), common.legend = TRUE
+)
+```
+
+## 10c. Full Network - By Village
+
+```{r plot-full-village, fig.width=10, fig.height=6}
+mlm_full_village <- mlm_full_summary |>
+  filter(term != "(Intercept)") |>
+  rename_mlm_terms() |>
+  mutate(
+    Estimate    = estimate,
+    lower_ci    = estimate - 1.96        * std.error,
+    upper_ci    = estimate + 1.96        * std.error,
+    lower_ci_90 = estimate - qnorm(0.95) * std.error,
+    upper_ci_90 = estimate + qnorm(0.95) * std.error,
+    Village = recode(Village,
+                     "Ampandrana"   = "A",
+                     "Mandena"      = "M",
+                     "Sarahandrano" = "S")
+  )
+
+ggarrange(
+  mlm_coef_plot(mlm_full_village, people_levels_full,
+                title = "Human Attributes", color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  mlm_coef_plot(mlm_full_village, animal_levels_full,
+                title = "Animal Attributes", color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  labels = c("a", "b"), common.legend = TRUE
+)
+```
+
+## 10d. High-Risk Network - Pooled
+
+```{r plot-hr-pooled, fig.width=10, fig.height=6}
+meta_mlm_hr_r <- meta_mlm_hr |> rename_mlm_terms()
+
+ggarrange(
+  mlm_coef_plot(meta_mlm_hr_r, people_levels_hr, title = "Human Attributes"),
+  mlm_coef_plot(meta_mlm_hr_r, animal_levels_hr, title = "Animal Attributes"),
+  labels = c("a", "b"), common.legend = TRUE
+)
+```
+
+## 10e. High-Risk Network - By Village
+
+```{r plot-hr-village, fig.width=10, fig.height=6}
+mlm_hr_village <- mlm_hr_summary |>
+  filter(term != "(Intercept)") |>
+  rename_mlm_terms() |>
+  mutate(
+    Estimate    = estimate,
+    lower_ci    = estimate - 1.96        * std.error,
+    upper_ci    = estimate + 1.96        * std.error,
+    lower_ci_90 = estimate - qnorm(0.95) * std.error,
+    upper_ci_90 = estimate + qnorm(0.95) * std.error,
+    Village = recode(Village,
+                     "Ampandrana"   = "A",
+                     "Mandena"      = "M",
+                     "Sarahandrano" = "S")
+  )
+
+ggarrange(
+  mlm_coef_plot(mlm_hr_village, people_levels_hr,
+                title = "Human Attributes", color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  mlm_coef_plot(mlm_hr_village, animal_levels_hr,
+                title = "Animal Attributes", color_var = "Village") +
+    scale_color_viridis_d(option = "D", end = 0.8),
+  labels = c("a", "b"), common.legend = TRUE
+)
+```
+
+---
+
+# 11. Coefficient Tables
+
+## 11a. Full Network - Pooled Estimates
+
+```{r table-full}
+meta_mlm_full |>
+  select(term, Estimate, SE, Lower, Upper, p) |>
+  mutate(across(where(is.numeric), ~ round(., 3))) |>
+  kable(
+    caption   = "Full Network - Pooled MLM Estimates (Fixed-Effects Meta-Analysis)",
+    col.names = c("Term", "Estimate", "SE", "Lower 95% CI", "Upper 95% CI", "p-value"),
+    row.names = FALSE
+  )
+```
+
+## 11b. High-Risk Network - Pooled Estimates
+
+```{r table-hr}
+meta_mlm_hr |>
+  select(term, Estimate, SE, Lower, Upper, p) |>
+  mutate(across(where(is.numeric), ~ round(., 3))) |>
+  kable(
+    caption   = "High-Risk Network - Pooled MLM Estimates (Fixed-Effects Meta-Analysis)",
+    col.names = c("Term", "Estimate", "SE", "Lower 95% CI", "Upper 95% CI", "p-value"),
+    row.names = FALSE
+  )
+```
+
+## 11c. By-Village Estimates - Full Network
+
+```{r table-full-village}
+mlm_full_summary |>
+  filter(term != "(Intercept)") |>
+  select(Village, term, estimate, std.error, p.value) |>
+  mutate(across(where(is.numeric), ~ round(., 3))) |>
+  arrange(term, Village) |>
+  kable(
+    caption   = "Full Network - Village-Level MLM Estimates",
+    col.names = c("Village", "Term", "Estimate", "SE", "p-value"),
+    row.names = FALSE
+  )
+```
+
+## 11d. By-Village Estimates - High-Risk Network
+
+```{r table-hr-village}
+mlm_hr_summary |>
+  filter(term != "(Intercept)") |>
+  select(Village, term, estimate, std.error, p.value) |>
+  mutate(across(where(is.numeric), ~ round(., 3))) |>
+  arrange(term, Village) |>
+  kable(
+    caption   = "High-Risk Network - Village-Level MLM Estimates",
+    col.names = c("Village", "Term", "Estimate", "SE", "p-value"),
+    row.names = FALSE
+  )
+```
+
+---
+# Looking closer at vanilla growers
+```{r}
+library(tableone)  
+
+# ------------------------------------------------------------------
+# Compare vanilla growers vs non-growers on all SES/demographic vars
+# One row per participant (not per dyad)
+# ------------------------------------------------------------------
+vanilla_comparison <- merged_df |>
+  distinct(social_netid, .keep_all = TRUE) |>
+  mutate(grew_vanilla = factor(grew_vanilla, levels = c(0, 1),
+                                labels = c("Did not grow", "Grew vanilla")))
+
+# --- Continuous variables: t-tests ---
+continuous_vars <- c("age", "landsize_in_daba", "household_size",
+                     "commercial_goods", "house_sol", "school_level_numbered")
+
+ttest_results <- lapply(continuous_vars, function(v) {
+  tt <- t.test(reformulate("grew_vanilla", response = v),
+               data = vanilla_comparison)
+  data.frame(
+    Variable  = v,
+    Mean_NoVanilla = tt$estimate[1],
+    Mean_Vanilla   = tt$estimate[2],
+    t         = tt$statistic,
+    p         = tt$p.value,
+    CI_lower  = tt$conf.int[1],
+    CI_upper  = tt$conf.int[2]
+  )
+}) |> bind_rows()
+
+print(ttest_results)
+
+# --- Categorical variables: chi-squared tests ---
+categorical_vars <- c("gender", "school_level", "employment_category", "village")
+
+chisq_results <- lapply(categorical_vars, function(v) {
+  tbl <- table(vanilla_comparison[[v]], vanilla_comparison$grew_vanilla)
+  cs  <- chisq.test(tbl)
+  data.frame(
+    Variable = v,
+    chi_sq   = cs$statistic,
+    df       = cs$parameter,
+    p        = cs$p.value
+  )
+}) |> bind_rows()
+
+print(chisq_results)
+
+# --- Proportions table for categorical vars ---
+lapply(categorical_vars, function(v) {
+  cat("\n---", v, "---\n")
+  print(prop.table(table(vanilla_comparison[[v]],
+                         vanilla_comparison$grew_vanilla), margin = 2))
+})
+
+# --- Animal contact: do non-growers contact different animals? ---
+# Total edge count per person by vanilla status
+flat_full_ergm |>
+  group_by(from) |>
+  summarise(
+    total_contacts = sum(edge == 1),
+    grew_vanilla   = first(grew_vanilla),
+    village        = first(village),
+    .groups = "drop"
+  ) |>
+  mutate(grew_vanilla = factor(grew_vanilla, levels = c(0, 1),
+                                labels = c("Did not grow", "Grew vanilla"))) |>
+  group_by(grew_vanilla) |>
+  summarise(
+    n             = n(),
+    mean_contacts = mean(total_contacts),
+    sd_contacts   = sd(total_contacts),
+    .groups = "drop"
+  ) |>
+  print()
+
+# Contact rates by specific animal category
+flat_full_ergm |>
+  filter(!is.na(animal_category)) |>
+  mutate(grew_vanilla = factor(grew_vanilla, levels = c(0, 1),
+                                labels = c("Did not grow", "Grew vanilla"))) |>
+  group_by(grew_vanilla, animal_category) |>
+  summarise(contact_rate = mean(edge == 1), .groups = "drop") |>
+  pivot_wider(names_from = grew_vanilla, values_from = contact_rate) |>
+  print()
+```
