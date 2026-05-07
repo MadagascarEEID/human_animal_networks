@@ -72,3 +72,8 @@ node_degree_table.RData
 self_reported_networks/Archive/ergm_ampandrana_andatsakala_high_risk.RData
 self_reported_networks/Archive/ergm_mandena_high_risk.RData
 *.pdf
+*.pptx
+*.jpg
+self_reported_networks/full_network_ergms 2026.04.06.Rmd
+self_reported_networks/.high_risk_network_sensitivty.html.icloud
+*.icloud

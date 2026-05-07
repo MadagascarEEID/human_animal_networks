@@ -161,7 +161,7 @@ prepare_village_data <- function(df, village_filter = NULL) {
       # FIX: rowSums gives per-person high-risk exposure counts
       num_high_risk_exposures = rowSums(
         across(contains(c("shared_water", "scratched_bitten", "feces",
-                          "dead", "raw_undercooked", "eaten_sick"))),
+                          "dead", "raw_undercooked", "eaten_sick", "slaughtered"))),
         na.rm = TRUE
       ),
       high_risk_exposures_binary = ifelse(
@@ -713,8 +713,6 @@ build_summary_df <- function(ergm_list, term_labels) {
 
 # ------------------------------------------------------------------
 # pool_one() / pool_all(): fixed-effects meta-analysis.
-# NOTE: k=3 sites — FE assumes true homogeneity. Consider REML to
-# acknowledge between-village variance.
 # ------------------------------------------------------------------
 pool_one <- function(summary_df, variable) {
   d   <- summary_df |> filter(Variable == variable)

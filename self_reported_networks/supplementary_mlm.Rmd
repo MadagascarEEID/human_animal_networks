@@ -137,7 +137,7 @@ prepare_village_data <- function(df, village_filter = NULL) {
       ),
       num_high_risk_exposures = rowSums(
         across(contains(c("shared_water", "scratched_bitten", "feces",
-                          "dead", "raw_undercooked", "eaten_sick"))),
+                          "dead", "raw_undercooked", "eaten_sick", "slaughtered"))),
         na.rm = TRUE
       ),
       high_risk_exposures_binary = ifelse(
