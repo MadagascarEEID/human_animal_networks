@@ -11,9 +11,7 @@ This folder contains code for generating bipartite networks based on GPS-based c
 
 -   **1_NetworkConstruction.Rmd** constructs edge lists for binary bipartite networks between people and domestic animals, according to their GPS overlaps
 
--   **2_ERGM.Rmd** ERGM for odds of edge formation between a human and a domestic animal individual in the spatial bipartite networks. 
-
--   **3. EffectSizePooling.R** pools effect sizes across villages for the ERGM coefficients. 
+-   **2_ERGM2.Rmd** ERGM for odds of edge formation between a human and a domestic animal individual in the spatial bipartite networks. 
 
 -   **outputs** contains network edge lists and ERGM results.
 
