@@ -96,3 +96,5 @@ covariate_coefs_pooled.csv
 predprob_contrasts_pooled_spatial_sensitivity.csv
 self_reported_networks/ame_by_village_atcontrols_selfreported.rds
 self_reported_networks/human_animal_networks_combined.Rmd
+self_reported_networks/Images/network_figures_take_2.R
+self_reported_networks/Images/pooled_coef_plots_combined.R
