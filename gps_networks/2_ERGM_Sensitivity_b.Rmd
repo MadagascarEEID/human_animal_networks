@@ -146,7 +146,7 @@ names(size) <- metadata_mand$social_netid
 size <- size[ net_mand %v% 'vertex.names' ]
 network::set.vertex.attribute(net_mand,"size",size)
 network::get.vertex.attribute(net_mand,attrname="size")
-#Missing #96
+
 
 #school
 school <- scale(metadata_mand$school_level)
@@ -194,7 +194,7 @@ network::set.vertex.attribute(net_mand,"color",color)
 network::get.vertex.attribute(net_mand,attrname="color")
 
 #Remove nodes that have missing values (3% of nodes)
-nodes_to_remove <- c(94, 96, 80, 149, 166, 171, 176)
+nodes_to_remove <- c(94, 80, 149, 166, 171, 176)
 net_mand <- network::delete.vertices(net_mand, nodes_to_remove)
 
 ```
@@ -450,10 +450,10 @@ net_anda <- network::delete.vertices(net_anda, c(371,386))
 set.seed(123)
 
 ergm_mandena <- ergm(net_mand ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
-                        b1cov("land")+b1cov("size")+b1cov("school")+
+                        b1cov("land")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+b1degree(10) + b1degree(11), 
+                      b1factor("vanilla"):b2factor("species")+  b1cov("land"):b2factor("species")+ b2factor("sex")+ b1degree(11)+b1degree(10)+b1degree(18), 
                  control = control.ergm(seed = 123))
 
 mandena_summary <-summary(ergm_mandena)
@@ -461,34 +461,39 @@ mandena_summary
 gof_mandena <- gof(ergm_mandena)
 plot(gof_mandena)
 max(vif.ergm(ergm_mandena))
+mcmc.diagnostics(ergm_mandena)
 
-
-ergm_sara <- ergm(net_sara ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
-                        b1cov("land")+b1cov("size")+b1cov("school")+
+ergm_sara <- ergm(net_sara~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
+                        b1cov("land")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+b1degree(9)+b1degree(10)+b1degree(11)+b1degree(12)+b1degree(13)+b1degree(14)+b1degree(15)+b1degree(16) + b1degree(17) +b1degree(18) + b1degree(19) + b1degree(20) + b1degree(21) + b1degree(22) + b1degree(23) + b1degree(24) + b1degree(25) + b1degree(26) + b1degree(), 
-                 control = control.ergm(seed = 123))
+                      b1factor("vanilla"):b2factor("species")+b1cov("land"):b2factor("species")+  b2factor("sex")+ b1degree(17), 
+                 control = control.ergm(seed = 123)) 
 
 sara_summary <-summary(ergm_sara)
 sara_summary
 gof_sara <- gof(ergm_sara)
 plot(gof_sara)
 max(vif.ergm(ergm_sara))
+mcmc.diagnostics(ergm_sara)
 
 
 ergm_anda <- ergm(net_anda ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
-                        b1cov("land")+b1cov("size")+b1cov("school")+
+                        b1cov("land")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
-                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species")+
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+b1degree(13)+b1degree(14)+b1degree(15)+b1degree(16)+b1degree(17) +b1degree(18) + b1degree(19) +b1degree(20) +b1degree(21) +b1degree(22) +b1degree(23) + b1degree(24) + b1degree(25)+b1degree(26)+b1degree(27)+b1degree(28), 
+                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
+                      b1factor("vanilla"):b2factor("species")+b1cov("land"):b2factor("species")+ b2factor("sex")+  b1degree(12), 
                  control = control.ergm(seed = 123))
 
 anda_summary <-summary(ergm_anda)
 anda_summary
 gof_anda <- gof(ergm_anda)
 plot(gof_anda)
-max(vif.ergm(ergm_anda))
+mcmc.diagnostics(ergm_anda)
+
+save(ergm_sara, file = "ergm_sara_sensitivity_15.RData")
+save(ergm_mandena, file = "ergm_mandena_sensitivity_15.RData")
+save(ergm_anda, file = "ergm_anda_sensitivity_15.RData")
 
 ```
 

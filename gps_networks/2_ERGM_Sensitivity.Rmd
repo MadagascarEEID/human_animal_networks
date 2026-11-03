@@ -22,7 +22,7 @@ gps_edge_mand <- read.csv(file=paste0(data_path,"/gps_edge_mand_5.csv")) %>% sel
 gps_edge_anda <- read.csv(file=paste0(data_path,"/gps_edge_anda_5.csv")) %>% select(-X)
 gps_edge_sara <- read.csv(file=paste0(data_path,"/gps_edge_sara_5.csv")) %>% select(-X)
 
-metadata <- read.csv("~/Documents/GitHub/human_animal_networks/gps_networks/metadata2.csv")
+metadata <- read.csv("~/Documents/human_animal_networks/gps_networks/metadata2.csv")
 animal_dat <- read.csv("~/Documents/Projects/SAVA_multilayer/cleaned_tables/Survey_Animal_Health.csv") %>% rename(id1="animal_id")
 
 metadata$school_level[metadata$school_level=="None"] <- 1
@@ -146,7 +146,7 @@ names(size) <- metadata_mand$social_netid
 size <- size[ net_mand %v% 'vertex.names' ]
 network::set.vertex.attribute(net_mand,"size",size)
 network::get.vertex.attribute(net_mand,attrname="size")
-#Missing #96
+
 
 #school
 school <- scale(metadata_mand$school_level)
@@ -194,7 +194,7 @@ network::set.vertex.attribute(net_mand,"color",color)
 network::get.vertex.attribute(net_mand,attrname="color")
 
 #Remove nodes that have missing values (3% of nodes)
-nodes_to_remove <- c(94, 96, 80, 149, 166, 171, 176)
+nodes_to_remove <- c(94, 80, 149, 166, 171, 176)
 net_mand <- network::delete.vertices(net_mand, nodes_to_remove)
 
 ```
@@ -450,10 +450,10 @@ net_anda <- network::delete.vertices(net_anda, c(371,386))
 set.seed(123)
 
 ergm_mandena <- ergm(net_mand ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
-                        b1cov("land")+b1cov("size")+b1cov("school")+
+                        b1cov("land")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex") + b1degree(0) +b1degree(4), 
+                      b1factor("vanilla"):b2factor("species")+  b1cov("land"):b2factor("species")+ b2factor("sex")+  b1degree(1)+ b1degree(3), 
                  control = control.ergm(seed = 123))
 
 mandena_summary <-summary(ergm_mandena)
@@ -461,326 +461,40 @@ mandena_summary
 gof_mandena <- gof(ergm_mandena)
 plot(gof_mandena)
 max(vif.ergm(ergm_mandena))
-
+mcmc.diagnostics(ergm_mandena)
 
 ergm_sara <- ergm(net_sara ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
-                        b1cov("land")+b1cov("size")+b1cov("school")+
+                        b1cov("land")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
                     b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex"), 
-                 control = control.ergm(seed = 123))
+                      b1factor("vanilla"):b2factor("species")+b1cov("land"):b2factor("species")+  b2factor("sex")+ b1degree(2)+ b1degree(1)+ b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11), 
+                 control = control.ergm(seed = 123)) 
 
 sara_summary <-summary(ergm_sara)
 sara_summary
 gof_sara <- gof(ergm_sara)
 plot(gof_sara)
 max(vif.ergm(ergm_sara))
+mcmc.diagnostics(ergm_sara)
 
 
 ergm_anda <- ergm(net_anda ~ edges + b1cov("age")+b1factor("gender")+b1factor("vanilla")+
-                        b1cov("land")+b1cov("size")+b1cov("school")+
+                        b1cov("land")+b1cov("school")+
                          b1cov("cgsol")+b1cov("hsol")+b2factor("species")+
-                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +b1degree(0)+b1degree(1)+
-                      b1factor("vanilla"):b2factor("species")+ b2factor("sex")+
-                  b1degree(2)+b1degree(3)+b1degree(7)+b1degree(8), 
+                    b1cov("cgsol"):b2factor("species") +b1cov("hsol"):b2factor("species") +
+                      b1factor("vanilla"):b2factor("species")+b1cov("land"):b2factor("species")+ b2factor("sex")+  b1degree(2)+ b1degree(1)+ b1degree(3)+ b1degree(4)+ b1degree(5)+ b1degree(6)+ b1degree(7)+ b1degree(8)+ b1degree(9)+ b1degree(10)+ b1degree(11)+ b1degree(12)+ b1degree(13)+ b1degree(14)+ b1degree(15)+ b1degree(16)+b1degree(22)+b1degree(23), 
                  control = control.ergm(seed = 123))
 
 anda_summary <-summary(ergm_anda)
 anda_summary
 gof_anda <- gof(ergm_anda)
 plot(gof_anda)
-max(vif.ergm(ergm_anda))
+mcmc.diagnostics(ergm_anda)
+
+save(ergm_sara, file = "ergm_sara_sensitivity_5.RData")
+save(ergm_mandena, file = "ergm_mandena_sensitivity_5.RData")
+save(ergm_anda, file = "ergm_anda_sensitivity_5.RData")
 
 ```
-
-```{r ERGM}
-
-
-summary_df <- rbind(as.data.frame(mandena_summary$coefficients)[2:14,], as.data.frame(sara_summary$coefficients)[2:14,], as.data.frame(anda_summary$coefficients)[2:14,])
-#summary_df <- summary_df[-42,] #CHANGE THIS
-
-summary_df$Village <- c(rep("Mandena", 13), rep("Sarahandrano", 13), rep("Andatsakala", 13))
-summary_df$Variable <- rep(c( "Age", "Gender[Male]", "Vanilla Farmer", "Land Size", "Household Size", "School Level",  "Commercial Goods", "House Materials", "Zebu", "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu", "Animal Sex[Male]"))
-summary_df$Variable <- factor(summary_df$Variable, levels = c("Age", "Gender[Male]",  "School Level",  "Household Size", "Land Size","Vanilla Farmer", "Commercial Goods", "House Materials", "Animal Sex[Male]",  "Commercial Goods:Zebu", "House Materials:Zebu", "Vanilla:Zebu","Zebu"))
-summary_df$lower_ci <- summary_df$Estimate - 1.96* summary_df$`Std. Error`
-summary_df$upper_ci <- summary_df$Estimate + 1.96* summary_df$`Std. Error`
-summary_df$lower_ci_90 <- summary_df$Estimate -qnorm(0.95)* summary_df$`Std. Error`
-summary_df$upper_ci_90 <- summary_df$Estimate + qnorm(0.95)* summary_df$`Std. Error`
-
-summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Zebu", Variable !="House Materials:Zebu", Variable !="Commercial Goods:Zebu", Variable !="Vanilla:Zebu", Variable !="Degree 1",Variable !="Degree 2",Variable !="Degree 3",Variable !="Degree 4", Variable !="Animal Sex[Male]")
-
-
- ggplot(summary_df, aes(x = Estimate, y = Variable, color = Village)) +
-  geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), 
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
-  theme_classic() + 
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) +
-  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) +
-  theme(
-    legend.position = "right", 
-    axis.title.y = element_text(size = 12),
-    axis.title.x = element_text(size = 12)  
-  )+
-  geom_vline(xintercept=0, linetype= "dashed")
- 
- 
- 
- 
- summary_df_filtered2 <- summary_df_filtered
-summary_df_filtered2$Significance <- summary_df_filtered2$`Pr(>|z|)`
-summary_df_filtered2$Significance[summary_df_filtered2$`Pr(>|z|)`<0.05] <- "Significant"
-summary_df_filtered2$Significance[summary_df_filtered2$`Pr(>|z|)`>=0.1] <- "Not Significant"
-summary_df_filtered2$Significance[summary_df_filtered2$`Pr(>|z|)`<0.1&summary_df_filtered2$`Pr(>|z|)`>=0.05] <- "Marginally Significant"
-
- ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Village)) +
-  geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), 
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
-  theme_classic() + 
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) +
-  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#2ca02c")) +
-  theme(
-    legend.position = "right", 
-    axis.title.y = element_text(size = 12),
-    axis.title.x = element_text(size = 12)  
-  )+
-  geom_vline(xintercept=0, linetype= "dashed")
- 
-fig_2 <-ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Significance, shape=Village)) + geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), 
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
-  theme_classic() + 
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) +
-  scale_color_manual(values = c( "grey70","#1f77b4")) +
-  theme(
-    legend.position = "right", 
-    axis.title.y = element_text(size = 12),
-    axis.title.x = element_text(size = 12)  
-  )+
-  geom_vline(xintercept=0, linetype= "dashed")
-
-
-
-summary_df_filtered3 <- summary_df %>% filter(Variable =="Zebu"| Variable =="House Materials:Zebu"| Variable =="Commercial Goods:Zebu"| Variable =="Vanilla:Zebu"| Variable =="Animal Sex[Male]")
-
-summary_df_filtered3$Significance <- summary_df_filtered3$`Pr(>|z|)`
-summary_df_filtered3$Significance[summary_df_filtered3$`Pr(>|z|)`<0.05] <- "Significant"
-summary_df_filtered3$Significance[summary_df_filtered3$`Pr(>|z|)`>=0.1] <- "Not Significant"
-summary_df_filtered3$Significance[summary_df_filtered3$`Pr(>|z|)`<0.1&summary_df_filtered3$`Pr(>|z|)`>=0.05] <- "Marginally Significant"
- 
-
-fig_3 <-ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Significance, shape=Village)) + geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), 
-                 height = 0.2, position = position_dodge(width = 0.5)) + 
-  theme_classic() + 
-  labs(x = "Estimated Effect", y = "Variable", 
-       title = NULL) +
-  scale_color_manual(values = c("lightblue", "grey70","#1f77b4")) +
-  theme(
-    legend.position = "right", 
-    axis.title.y = element_text(size = 12),
-    axis.title.x = element_text(size = 12)  
-  )+
-  geom_vline(xintercept=0, linetype= "dashed")
-
-
-
-
-summary_df_filtered2$Village[summary_df_filtered2$Village=="Mandena"] <- "M"
-summary_df_filtered2$Village[summary_df_filtered2$Village=="Sarahandrano"] <- "S"
-summary_df_filtered2$Village[summary_df_filtered2$Village=="Andatsakala"] <- "A"
-
-
-people_plot <- ggplot(summary_df_filtered2, aes(x = Estimate, y = Variable, color = Village)) + 
-  # Points for estimated effects with dodge position
-  geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  # 95% CI as thinner linerange
-  geom_linerange(
-    aes(xmin = lower_ci, xmax = upper_ci),
-    position = position_dodge(0.5), linewidth = 0.4
-  ) +
-  # 90% CI as thicker linerange
-  geom_linerange(
-    aes(xmin = lower_ci_90, xmax = upper_ci_90),
-    position = position_dodge(0.5), linewidth = 1.2
-  ) + 
-  # Classic theme
-  theme_classic() +
-  # Labels
-  labs(x = "Estimated Effect", y = NULL) + 
-  # Colorblind-friendly palette from viridis
-  scale_color_viridis_d(option = "D", end = 0.8) +  
-  # Theme adjustments
-  theme(
-    legend.position = "right", 
-    axis.title.y = element_text(size = 12),
-    axis.title.x = element_text(size = 12)
-  ) +
-  # Reference line at zero
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
-
-
-summary_df_filtered3$Village[summary_df_filtered3$Village=="Mandena"] <- "M"
-summary_df_filtered3$Village[summary_df_filtered3$Village=="Sarahandrano"] <- "S"
-summary_df_filtered3$Village[summary_df_filtered3$Village=="Andatsakala"] <- "A"
-
-#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="CGSOL:Zebu"] <- "Commercial Goods:Zebu"
-#summary_df_filtered3$Variable[summary_df_filtered3$Variable=="HSOL:Zebu"] <- "House Materials:Zebu"
-
-animals_plot <- ggplot(summary_df_filtered3, aes(x = Estimate, y = Variable, color = Village)) + 
-  # Points for estimated effects with dodge position
-  geom_point(position = position_dodge(width = 0.5), size = 3) + 
-  # 95% CI as thinner linerange
-  geom_linerange(
-    aes(xmin = lower_ci, xmax = upper_ci),
-    position = position_dodge(0.5), linewidth = 0.4
-  ) +
-  # 90% CI as thicker linerange
-  geom_linerange(
-    aes(xmin = lower_ci_90, xmax = upper_ci_90),
-    position = position_dodge(0.5), linewidth = 1.2
-  ) + 
-  # Classic theme
-  theme_classic() +
-  # Labels
-  labs(x = "Estimated Effect", y = NULL) + 
-  # Colorblind-friendly palette from viridis
-  scale_color_viridis_d(option = "D", end = 0.8) +  
-  # Theme adjustments
-  theme(
-    legend.position = "right", 
-    axis.title.y = element_text(size = 12),
-    axis.title.x = element_text(size = 12)
-  ) +
-  # Reference line at zero
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40")
-
-ggarrange(people_plot, animals_plot, labels = c("a", "b"), common.legend = TRUE)
-
-write.csv(summary_df, "summary_df_spatial_sensitivity.csv")
-
-
-
-
-```
-
-```{r}
-library(network)
-library(sna)  # For degree calculation
-
-# Set up a 1-row, 3-column layout and remove margins
-par(mfrow = c(1, 3), mar = c(2, 0, 2, 0))  # Top margin for labels
-
-
-# --- Plot net_anda ---
-node_colors <- net_anda %v% "color"
-node_sizes <- net_anda %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_anda, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-mtext("A", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
-
-
-# --- Plot net_mand ---
-node_colors <- net_mand %v% "color"
-node_sizes <- net_mand %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_mand, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-mtext("M", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
-
-# --- Plot net_sara ---
-node_colors <- net_sara %v% "color"
-node_sizes <- net_sara %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_sara, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-mtext("S", side = 3, line = 0.5, cex = 1, font = 2)  # Add label above
-
-```
-
-```{r}
-library(network)
-library(sna)  # For degree calculation
-
-# Set up a 1-row, 3-column layout and remove margins
-par(mfrow = c(1, 3), mar = c(0, 0, 0, 0))
-
-# --- Plot net_mand ---
-node_colors <- net_mand %v% "color"
-node_sizes <- net_mand %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_mand, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-
-# --- Plot net_anda ---
-node_colors <- net_anda %v% "color"
-node_sizes <- net_anda %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_anda, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-
-# --- Plot net_sara ---
-node_colors <- net_sara %v% "color"
-node_sizes <- net_sara %v% "degree"
-scaled_sizes <- ((node_sizes / max(node_sizes, na.rm = TRUE)) * 3) + 0.5
-
-plot(net_sara, 
-     vertex.col = node_colors, 
-     vertex.cex = scaled_sizes, 
-     edge.col = adjustcolor("grey60", alpha.f = 0.5),
-     displayisolates = TRUE)
-
-```
-
-```{r}
-
-library(sna)
-
-net_anda
-
-mean((sna::degree(net_anda))[1:331])
-sd((sna::degree(net_anda))[1:331])
-
-mean((sna::degree(net_anda))[332:451])
-sd((sna::degree(net_anda))[332:451])
-
-num_edges <- network.edgecount(net_anda)  # Number of edges
-num_nodes <- network.size(net_anda)       # Number of nodes
-max_edges <- (num_nodes * (num_nodes - 1)) / 2  # Max edges for undirected
-
-# Edge density calculation
-edge_density <- num_edges / max_edges
-
-
-plot(net_anda)
-```
-
-
-
 
 
