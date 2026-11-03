@@ -3,8 +3,14 @@ library(here)
 library(tidyverse)
 library(ggplot2)
 library(viridis)
-source(here("./self_reported_networks/Loading Interaction Data.R"))
 
+animal_interaction_data <- read.csv(
+  "/Users/levkolinski/Library/CloudStorage/Box-Box/EEID_Data_public/clean_data_tables/NIH Human Surveys/Survey_Animal_Interaction.csv"
+)
+animal_interaction_data_cleaned <- animal_interaction_data |>
+  mutate(across(-starts_with("social_netid"), ~ ifelse(. == "Yes", 1L, 0L))) |>
+  select(-starts_with("symptoms"), -starts_with("action_"),
+         -contains("frequency"))
 
 animal_contact_data <- animal_interaction_data_cleaned |> 
   select(pet_dogs:dead_goats_sheep)
@@ -94,8 +100,8 @@ heatmap<- ggplot(heatmap_data, aes(x = animal, y = interaction_type, fill = coun
     panel.grid = element_blank()  # Remove all gridlines
   )
   
-
-# ggsave("heatmap_revised.png", plot = heatmap, width = 8,
+# 
+# ggsave("heatmap_revised_2026.06.03.png", plot = heatmap, width = 8,
 #        height = 6, units = "in", dpi = 300)
 
 
