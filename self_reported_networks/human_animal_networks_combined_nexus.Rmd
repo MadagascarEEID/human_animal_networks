@@ -1,5 +1,5 @@
 ---
-title: "Human-Animal Contact Networks: Full Pipeline"
+title: "Human-Animal Contact Networks: Full Pipeline for Nexus"
 author: "Lev Kolinski"
 date: "`r Sys.Date()`"
 output: html_document
@@ -46,7 +46,6 @@ demographic_health_data_cleaned <- demographic_health_data |>
   )) |>
   select(
     survey_date, social_netid, village, age, gender, school_level,
-    household_size, main_activity,
     starts_with("material_"), starts_with("own_"),
     crops_vanilla, landsize_in_daba
   )
@@ -104,10 +103,7 @@ prepare_village_data <- function(df, village_filter = NULL) {
   vname <- paste(village_filter, collapse = "/")
 
   # --- ordinal housing material indices (unscaled) ---
-  # NOTE: "ravenala" — not "ravinala" — is the correct spelling.
-  # A misspelling here causes case_when to hit TRUE ~ NA_real_ for all
-  # ravenala rows, producing an all-NA floor index, which propagates
-  # NaN through house_sol and causes mass vertex deletion downstream.
+  # 
   df <- df |>
     mutate(
       material_wall_index = case_when(
@@ -148,17 +144,11 @@ prepare_village_data <- function(df, village_filter = NULL) {
           own_motorcycle + own_computer + own_generator,
         paste(vname, "commercial_goods")
       ),
-      # FIX: rowSums inside mutate gives per-row totals
+      # rowSums inside mutate gives per-row totals
       total_animal_interactions = rowSums(
         across(pet_dogs:dead_goats_sheep), na.rm = TRUE
       ),
-      employment_category = case_when(
-        grepl("farm_crops|farm_mixed", main_activity)      ~ "Farmer",
-        grepl("student|teacher", main_activity)            ~ "Education",
-        grepl("unemployed|retired_teacher", main_activity) ~ "Unemployed",
-        TRUE                                               ~ "Other"
-      ),
-      # FIX: rowSums gives per-person high-risk exposure counts
+      # rowSums gives per-person high-risk exposure counts
       num_high_risk_exposures = rowSums(
         across(contains(c("shared_water", "scratched_bitten", "feces",
                           "cooked_handled", "raw_undercooked", "eaten_sick", "slaughtered"))),
@@ -180,9 +170,7 @@ prepare_village_data <- function(df, village_filter = NULL) {
       age              = safe_scale(age,
                                     paste(vname, "age")),
       landsize_in_daba = safe_scale(landsize_in_daba,
-                                    paste(vname, "land_size")),
-      household_size   = safe_scale(household_size,
-                                    paste(vname, "household_size"))
+                                    paste(vname, "land_size"))
     ) |>
     rename(grew_vanilla = crops_vanilla)
 }
@@ -307,7 +295,6 @@ build_bipartite_graph <- function(edge_list, all_humans, all_animals, df) {
   g <- attach_attr(g, "house_sol",        df$house_sol,             human_vids)
   g <- attach_attr(g, "grew_vanilla",     df$grew_vanilla,          human_vids)
   g <- attach_attr(g, "land_size",        df$landsize_in_daba,      human_vids)
-  g <- attach_attr(g, "household_size",   df$household_size,        human_vids)
   g <- attach_attr(g, "school_level",     df$school_level_numbered, human_vids)
 
   V(g)$animal_name <- "Human"
@@ -451,7 +438,6 @@ igraph_to_statnet <- function(ig) {
     house_sol        = V(ig)$house_sol,
     grew_vanilla     = V(ig)$grew_vanilla,
     land_size        = V(ig)$land_size,
-    household_size   = V(ig)$household_size,
     school_level     = V(ig)$school_level,
     degree           = V(ig)$degree,
     animal_name      = V(ig)$animal_name,
@@ -517,7 +503,6 @@ igraph_to_statnet <- function(ig) {
   sn %v% "house_sol"        <- node_df_ordered$house_sol
   sn %v% "grew_vanilla"     <- node_df_ordered$grew_vanilla
   sn %v% "land_size"        <- node_df_ordered$land_size
-  sn %v% "household_size"   <- node_df_ordered$household_size
   sn %v% "school_level"     <- node_df_ordered$school_level
   sn %v% "degree"           <- node_df_ordered$degree
   sn %v% "animal_name"      <- node_df_ordered$animal_name
@@ -525,7 +510,7 @@ igraph_to_statnet <- function(ig) {
 
   # Drop humans with missing covariates only — never animal vertices
   covariate_attrs <- c("age", "gender", "commercial_goods", "house_sol",
-                       "grew_vanilla", "land_size", "household_size",
+                       "grew_vanilla", "land_size", 
                        "school_level")
   animal_vids <- which(sn %v% "animal_name" != "Human")
   vertices_with_na <- Reduce(union, lapply(covariate_attrs, function(a)
@@ -547,7 +532,7 @@ igraph_to_statnet <- function(ig) {
 
 ## 5b. Convert All Networks
 
-```{r convert-networks, message=TRUE, warning=FALSE}
+```{r convert-networks, message=TRUE, warning=TRUE}
 sn_full_amp <- igraph_to_statnet(bg_full_amp)
 sn_full_man <- igraph_to_statnet(bg_full_man)
 sn_full_sar <- igraph_to_statnet(bg_full_sar)
@@ -558,126 +543,151 @@ sn_hr_sar   <- igraph_to_statnet(bg_hr_sar)
 ```
 
 ## 5c. Run ERGMs — Full Network
+```{r ergm-full}
+# ergm_full_amp <- ergm(
+#   sn_full_amp ~
+#     edges + b2cov("age") + b2factor("gender") +
+#     b2cov("commercial_goods") + b2cov("house_sol") +
+#     b2factor("grew_vanilla") + b2cov("land_size") +
+#     b2cov("school_level") +
+#     b1factor("animal_category") +
+#     b1factor("animal_category"):b2cov("land_size")+
+#     b1factor("animal_category"):b2cov("commercial_goods") +
+#     b1factor("animal_category"):b2cov("house_sol") +
+#     b1factor("animal_category"):b2factor("grew_vanilla") +
+#     b2degree(2) + b2degree(3) + b2degree(4) +
+#     b2degree(5) + b2degree(6),
+#   control = control.ergm(seed = 1234)
+# )
+# 
+# save(ergm_full_amp, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_a_nexus.RData")
+# 
+# 
+# ergm_full_man <- ergm(
+#   sn_full_man ~
+#     edges + b2cov("age") + b2factor("gender") +
+#     b2cov("commercial_goods") + b2cov("house_sol") +
+#     b2factor("grew_vanilla") + b2cov("land_size") +
+#      b2cov("school_level") +
+#     b1factor("animal_category") +
+#     b1factor("animal_category"):b2cov("land_size")+
+#     b1factor("animal_category"):b2cov("commercial_goods") +
+#     b1factor("animal_category"):b2cov("house_sol") +
+#     b1factor("animal_category"):b2factor("grew_vanilla") +
+#     b2degree(3) + b2degree(4) +
+#     b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
+#   control = control.ergm(seed = 123)
+# )
+# 
+# save(ergm_full_man, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_m_nexus.RData")
+# 
+# 
+# ergm_full_sar <- ergm(
+#   sn_full_sar ~
+#     edges + b2cov("age") + b2factor("gender") +
+#     b2cov("commercial_goods") + b2cov("house_sol") +
+#     b2factor("grew_vanilla") + b2cov("land_size") +
+#     b2cov("school_level") +
+#     b1factor("animal_category") +
+#     b1factor("animal_category"):b2cov("land_size")+
+#     b1factor("animal_category"):b2cov("commercial_goods") +
+#     b1factor("animal_category"):b2cov("house_sol") +
+#     b1factor("animal_category"):b2factor("grew_vanilla") +
+#     b2degree(3) + b2degree(4) + b2degree(5) +
+#     b2degree(6) + b2degree(7) + b2degree(8),
+#   control = control.ergm(seed = 123)
+# )
 
-```{r ergm-full, cache=TRUE}
-ergm_full_amp <- ergm(
-  sn_full_amp ~
-    edges + b2cov("age") + b2factor("gender") +
-    b2cov("commercial_goods") + b2cov("house_sol") +
-    b2factor("grew_vanilla") + b2cov("land_size") +
-    b2cov("household_size") + b2cov("school_level") +
-    b1factor("animal_category") +
-    b1factor("animal_category"):b2cov("commercial_goods") +
-    b1factor("animal_category"):b2cov("house_sol") +
-    b1factor("animal_category"):b2factor("grew_vanilla") +
-    b2degree(2) + b2degree(3) + b2degree(4) +
-    b2degree(5) + b2degree(6),
-  control = control.ergm(seed = 1234)
-)
-
-#save(ergm_full_amp, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_a.RData")
-
-
-ergm_full_man <- ergm(
-  sn_full_man ~
-    edges + b2cov("age") + b2factor("gender") +
-    b2cov("commercial_goods") + b2cov("house_sol") +
-    b2factor("grew_vanilla") + b2cov("land_size") +
-    b2cov("household_size") + b2cov("school_level") +
-    b1factor("animal_category") +
-    b1factor("animal_category"):b2cov("commercial_goods") +
-    b1factor("animal_category"):b2cov("house_sol") +
-    b1factor("animal_category"):b2factor("grew_vanilla") +
-    b2degree(2) + b2degree(3) + b2degree(4) +
-    b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
-  control = control.ergm(seed = 123)
-)
-
-#save(ergm_full_man, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_m.RData")
-
-
-ergm_full_sar <- ergm(
-  sn_full_sar ~
-    edges + b2cov("age") + b2factor("gender") +
-    b2cov("commercial_goods") + b2cov("house_sol") +
-    b2factor("grew_vanilla") + b2cov("land_size") +
-    b2cov("household_size") + b2cov("school_level") +
-    b1factor("animal_category") +
-    b1factor("animal_category"):b2cov("commercial_goods") +
-    b1factor("animal_category"):b2cov("house_sol") +
-    b1factor("animal_category"):b2factor("grew_vanilla") +
-    b2degree(3) + b2degree(4) + b2degree(5) +
-    b2degree(6) + b2degree(7) + b2degree(8),
-  control = control.ergm(seed = 123)
-)
-
-#save(ergm_full_sar, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_s.RData")
+# save(ergm_full_sar, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_s_nexus.RData")
 
 ```
 
 ## 5d. Run ERGMs — High-Risk Network
 
-```{r ergm-high-risk, cache=TRUE}
-ergm_hr_amp <- ergm(
-  sn_hr_amp ~
-    edges + b2cov("age") + b2factor("gender") +
-    b2cov("commercial_goods") + b2cov("house_sol") +
-    b2factor("grew_vanilla") + b2cov("land_size") +
-    b2cov("household_size") + b2cov("school_level") +
-    b1factor("animal_category") +
-    b1factor("animal_category"):b2cov("commercial_goods") +
-    b1factor("animal_category"):b2cov("house_sol") +
-    b1factor("animal_category"):b2factor("grew_vanilla") +
-    b2degree(1) + b2degree(2) + b2degree(4) +
-    b2degree(5) + b2degree(6) + b2degree(8),
-  control = control.ergm(seed = 1234)
-)
+```{r ergm-high-risk}
+# ergm_hr_amp <- ergm(
+#   sn_hr_amp ~
+#     edges + b2cov("age") + b2factor("gender") +
+#     b2cov("commercial_goods") + b2cov("house_sol") +
+#     b2factor("grew_vanilla") + b2cov("land_size") +
+#      b2cov("school_level") +
+#     b1factor("animal_category") +
+#     b1factor("animal_category"):b2cov("land_size")+
+#     b1factor("animal_category"):b2cov("commercial_goods") +
+#     b1factor("animal_category"):b2cov("house_sol") +
+#     b1factor("animal_category"):b2factor("grew_vanilla") +
+#     b2degree(1) + b2degree(2) + b2degree(4) +
+#     b2degree(5) + b2degree(6) + b2degree(8),
+#   control = control.ergm(seed = 1234)
+# )
+# 
+# save(ergm_hr_amp, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_a_nexus.RData")
+# 
+# 
+# ergm_hr_man <- ergm(
+#   sn_hr_man ~
+#     edges + b2cov("age") + b2factor("gender") +
+#     b2cov("commercial_goods") + b2cov("house_sol") +
+#     b2factor("grew_vanilla") + b2cov("land_size") +
+#     b2cov("school_level") +
+#     b1factor("animal_category") +
+#     b1factor("animal_category"):b2cov("land_size")+
+#     b1factor("animal_category"):b2cov("commercial_goods") +
+#     b1factor("animal_category"):b2cov("house_sol") +
+#     b1factor("animal_category"):b2factor("grew_vanilla") +
+#     b2degree(2) + b2degree(3) + b2degree(4) +
+#     b2degree(5) + b2degree(6) + b2degree(7),
+#   control = control.ergm(seed = 123)
+# )
+# 
+# # save(ergm_hr_man, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_m_nexus.RData")
+# 
+# 
+# ergm_hr_sar <- ergm(
+#   sn_hr_sar ~
+#     edges + b2cov("age") + b2factor("gender") +
+#     b2cov("commercial_goods") + b2cov("house_sol") +
+#     b2factor("grew_vanilla") + b2cov("land_size") +
+#     b2cov("school_level") +
+#     b1factor("animal_category") +
+#     b1factor("animal_category"):b2cov("land_size")+
+#     b1factor("animal_category"):b2cov("commercial_goods") +
+#     b1factor("animal_category"):b2cov("house_sol") +
+#     b1factor("animal_category"):b2factor("grew_vanilla") +
+#     b2degree(2) + b2degree(3) + b2degree(4) +
+#     b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
+#   control = control.ergm(seed = 1234)
+# )
 
-#save(ergm_hr_amp, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_a.RData")
+# save(ergm_hr_sar, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_s_nexus.RData")
+```
+## LOADING ERGMs
+```{r}
+load("~/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_a_nexus.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_m_nexus.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/Results/ergm_full_village_s_nexus.RData")
 
 
-ergm_hr_man <- ergm(
-  sn_hr_man ~
-    edges + b2cov("age") + b2factor("gender") +
-    b2cov("commercial_goods") + b2cov("house_sol") +
-    b2factor("grew_vanilla") + b2cov("land_size") +
-    b2cov("household_size") + b2cov("school_level") +
-    b1factor("animal_category") +
-    b1factor("animal_category"):b2cov("commercial_goods") +
-    b1factor("animal_category"):b2cov("house_sol") +
-    b1factor("animal_category"):b2factor("grew_vanilla") +
-    b2degree(2) + b2degree(3) + b2degree(4) +
-    b2degree(5) + b2degree(6) + b2degree(7),
-  control = control.ergm(seed = 123)
-)
+load("~/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_a_nexus.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_m_nexus.RData")
+load("~/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_s_nexus.RData")
 
-#save(ergm_hr_man, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_m.RData")
-
-
-ergm_hr_sar <- ergm(
-  sn_hr_sar ~
-    edges + b2cov("age") + b2factor("gender") +
-    b2cov("commercial_goods") + b2cov("house_sol") +
-    b2factor("grew_vanilla") + b2cov("land_size") +
-    b2cov("household_size") + b2cov("school_level") +
-    b1factor("animal_category") +
-    b1factor("animal_category"):b2cov("commercial_goods") +
-    b1factor("animal_category"):b2cov("house_sol") +
-    b1factor("animal_category"):b2factor("grew_vanilla") +
-    b2degree(2) + b2degree(3) + b2degree(4) +
-    b2degree(5) + b2degree(6) + b2degree(7) + b2degree(8),
-  control = control.ergm(seed = 1234)
-)
-
-#save(ergm_hr_sar, file = "/Users/levkolinski/Desktop/human_animal_networks/self_reported_networks/Results/ergm_hr_village_s.RData")
 ```
 
 ## 5e. MCMC Diagnostics and GOF
 
 ```{r diagnostics}
-vif.ergm(ergm_full_amp); mcmc.diagnostics(ergm_full_amp); ergm:::plot.gof(gof(ergm_full_amp))
-vif.ergm(ergm_full_man); mcmc.diagnostics(ergm_full_man); ergm:::plot.gof(gof(ergm_full_man))
-vif.ergm(ergm_full_sar); mcmc.diagnostics(ergm_full_sar); ergm:::plot.gof(gof(ergm_full_sar))
+vif.ergm(ergm_full_amp) 
+mcmc.diagnostics(ergm_full_amp) 
+ergm:::plot.gof(gof(ergm_full_amp))
+
+vif.ergm(ergm_full_man)
+mcmc.diagnostics(ergm_full_man)
+ergm:::plot.gof(gof(ergm_full_man))
+
+vif.ergm(ergm_full_sar)
+mcmc.diagnostics(ergm_full_sar)
+ergm:::plot.gof(gof(ergm_full_sar))
 
 vif.ergm(ergm_hr_amp); mcmc.diagnostics(ergm_hr_amp); ergm:::plot.gof(gof(ergm_hr_amp))
 vif.ergm(ergm_hr_man); mcmc.diagnostics(ergm_hr_man); ergm:::plot.gof(gof(ergm_hr_man))
@@ -756,7 +766,7 @@ coef_plot <- function(df, var_levels, color_var = NULL) {
 
 rename_vars <- function(df) {
   df |> mutate(Variable = str_replace_all(
-    Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.",
+    Variable, c("CGSOL" = "Goods", "HSOL" = "House Mat.","LandSize" = "Land Size",
                 "Gender\\[Male\\]" = "Gender[Man]",
                 "Rodents" = "Rodent")))
 }
@@ -778,7 +788,7 @@ add_ci_cols <- function(df, se_col = "SE") {
 }
 
 people_levels <- c("House Mat.", "Goods", "Vanilla", "Land Size",
-                   "Household Size", "School Level", "Gender[Man]", "Age")
+                    "School Level", "Gender[Man]", "Age")
 ```
 
 ## 6b. Full Network: Pool and Plot
@@ -786,8 +796,8 @@ people_levels <- c("House Mat.", "Goods", "Vanilla", "Land Size",
 ```{r full-network-pool-plot}
 full_term_labels <- c(
   "Edges", "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla",
-  "Land Size", "Household Size", "School Level",
-  "Rodents", "Wild",
+  "Land Size", "School Level",
+  "Rodents", "Wild", "LandSize:Rodents", "LandSize:Wild", 
   "CGSOL:Rodents", "CGSOL:Wild", "HSOL:Rodents", "HSOL:Wild",
   "Vanilla:Rodents", "Vanilla:Wild"
 )
@@ -809,7 +819,8 @@ print(meta_df_full)
 animal_levels_full <- c("Rodent", "Wild",
                         "Vanilla:Rodent",    "Vanilla:Wild",
                         "House Mat.:Rodent", "House Mat.:Wild",
-                        "Goods:Rodent",      "Goods:Wild")
+                        "Goods:Rodent",      "Goods:Wild",
+                        "Land Size:Rodent",  "Land Size:Wild")
 
 # Pooled
 meta_full_r <- meta_df_full |> rename_vars()
@@ -841,8 +852,8 @@ ggarrange(
 ```{r high-risk-pool-plot}
 hr_term_labels <- c(
   "Edges", "Age", "Gender[Male]", "CGSOL", "HSOL", "Vanilla",
-  "Land Size", "Household Size", "School Level",
-  "Other Dom.", "Rodents", "Wild",
+  "Land Size", "School Level",
+  "Other Dom.", "Rodents", "Wild","LandSize:Other Dom.", "LandSize:Rodents", "LandSize:Wild",
   "CGSOL:Other Dom.", "CGSOL:Rodents", "CGSOL:Wild",
   "HSOL:Other Dom.",  "HSOL:Rodents",  "HSOL:Wild",
   "Vanilla:Other Dom.", "Vanilla:Rodents", "Vanilla:Wild"
@@ -863,9 +874,10 @@ print(meta_df_hr)
 
 animal_levels_hr <- c(
   "Other Dom.", "Rodent", "Wild",
-  "Vanilla:Other Dom.", "Vanilla:Rodent",    "Vanilla:Wild",
+  "Vanilla:Other Dom.",    "Vanilla:Rodent",    "Vanilla:Wild",
   "House Mat.:Other Dom.", "House Mat.:Rodent", "House Mat.:Wild",
-  "Goods:Other Dom.",   "Goods:Rodent",      "Goods:Wild"
+  "Goods:Other Dom.",      "Goods:Rodent",      "Goods:Wild",
+  "Land Size:Other Dom.",  "Land Size:Rodent",  "Land Size:Wild"
 )
 
 # Pooled
@@ -901,18 +913,25 @@ ggarrange(
 
 ```{r network-stats}
 calculate_network_stats <- function(graph, village_name) {
-  hd <- V(graph)$degree[ V(graph)$type]
-  ad <- V(graph)$degree[!V(graph)$type]
+  deg <- igraph::degree(graph)
+  hd <- deg[V(graph)$type]
+  ad <- deg[!V(graph)$type]
+
+  n_human  <- sum(V(graph)$type)
+  n_animal <- sum(!V(graph)$type)
+  n_edges  <- igraph::ecount(graph)
+  bipartite_density <- n_edges / (n_human * n_animal)
+
   data.frame(
     Village            = village_name,
-    N_Human_Nodes      = sum( V(graph)$type),
+    N_Human_Nodes      = n_human,
     Mean_Human_Degree  = mean(hd), SD_Human_Degree  = sd(hd),
     Min_Human_Degree   = min(hd),  Max_Human_Degree = max(hd),
-    N_Animal_Nodes     = sum(!V(graph)$type),
+    N_Animal_Nodes     = n_animal,
     Mean_Animal_Degree = mean(ad), SD_Animal_Degree  = sd(ad),
     Min_Animal_Degree  = min(ad),  Max_Animal_Degree = max(ad),
-    Num_Edges          = igraph::ecount(graph),
-    Density            = igraph::edge_density(graph)
+    Num_Edges          = n_edges,
+    Density            = bipartite_density
   )
 }
 

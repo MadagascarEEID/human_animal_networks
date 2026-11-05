@@ -13,6 +13,7 @@ library(broom.mixed)
 library(metafor)
 library(ggpubr)
 library(kableExtra)
+library(openxlsx)
 
 set.seed(1234)
 ```
@@ -42,7 +43,7 @@ demographic_health_data_cleaned <- demographic_health_data |>
   )) |>
   select(
     survey_date, social_netid, village, age, gender, school_level,
-    household_size, main_activity,
+    main_activity,
     starts_with("material_"), starts_with("own_"),
     crops_vanilla, landsize_in_daba
   )
@@ -154,8 +155,7 @@ prepare_village_data <- function(df, village_filter = NULL) {
         paste(vname, "school_level")
       ),
       age              = safe_scale(age,              paste(vname, "age")),
-      landsize_in_daba = safe_scale(landsize_in_daba, paste(vname, "land_size")),
-      household_size   = safe_scale(household_size,   paste(vname, "household_size"))
+      landsize_in_daba = safe_scale(landsize_in_daba, paste(vname, "land_size"))
     ) |>
     rename(grew_vanilla = crops_vanilla)
 }
@@ -259,7 +259,7 @@ make_flat_edge_df <- function(df, animals, col_pattern_fn) {
   # Attach human-level covariates
   human_meta <- df |>
     select(social_netid, village, age, gender, commercial_goods,
-           house_sol, grew_vanilla, landsize_in_daba, household_size,
+           house_sol, grew_vanilla, landsize_in_daba,
            school_level_numbered) |>
     rename(
       from         = social_netid,
@@ -286,7 +286,7 @@ pipeline, ensuring the MLM sample matches the ERGM sample exactly.
 
 ```{r retained-humans}
 covariate_cols <- c("age", "gender", "commercial_goods", "house_sol",
-                    "grew_vanilla", "landsize_in_daba", "household_size",
+                    "grew_vanilla", "landsize_in_daba", 
                     "school_level_numbered")
 
 complete_humans <- merged_df |>
@@ -362,8 +362,9 @@ run_mlm <- function(df, village_names, label) {
   fit <- glmmTMB(
     edge ~
       age + gender + commercial_goods + house_sol +
-      grew_vanilla + land_size + household_size + school_level +
+      grew_vanilla + land_size + school_level +
       animal_category +
+      animal_category:land_size+
       animal_category:commercial_goods +
       animal_category:house_sol +
       animal_category:grew_vanilla +
@@ -466,7 +467,6 @@ rename_mlm_terms <- function(df) {
       str_replace_all("grew_vanilla1",                 "Vanilla") |>
       str_replace_all("genderMale",                    "Gender[Man]") |>
       str_replace_all("land_size",                     "Land Size") |>
-      str_replace_all("household_size",                "Household Size") |>
       str_replace_all("school_level",                  "School Level") |>
       str_replace_all("^age$",                         "Age") |>
       # Clean up interaction separators
@@ -499,17 +499,18 @@ mlm_coef_plot <- function(df, var_levels, title = NULL, color_var = NULL) {
 # Explicit term orderings matching the ERGM plots exactly
 # Full network (3 animal categories)
 people_levels_full <- c("House Mat.", "Goods", "Vanilla", "Land Size",
-                        "Household Size", "School Level", "Gender[Man]", "Age")
+                        "School Level", "Gender[Man]", "Age")
 animal_levels_full <- c("Rodent", "Wild",
+                        "Land Size:Rodent", "Land Size:Wild",
                         "Vanilla:Rodent",    "Vanilla:Wild",
                         "House Mat.:Rodent", "House Mat.:Wild",
                         "Goods:Rodent",      "Goods:Wild")
 
 # High-risk network (4 animal categories, adds Other Dom.)
 people_levels_hr <- c("House Mat.", "Goods", "Vanilla", "Land Size",
-                      "Household Size", "School Level", "Gender[Man]", "Age")
+                     "School Level", "Gender[Man]", "Age")
 animal_levels_hr <- c("Other Dom.", "Rodent", "Wild",
-                      "Vanilla:Other Dom.", "Vanilla:Rodent",    "Vanilla:Wild",
+                      "Land Size:Other Dom.", "Land Size:Rodent", "Land Size:Wild",                      "Vanilla:Other Dom.", "Vanilla:Rodent",    "Vanilla:Wild",
                       "House Mat.:Other Dom.", "House Mat.:Rodent", "House Mat.:Wild",
                       "Goods:Other Dom.",      "Goods:Rodent",      "Goods:Wild")
 ```
@@ -524,6 +525,15 @@ ggarrange(
   mlm_coef_plot(meta_mlm_full_r, animal_levels_full, title = "Animal Attributes"),
   labels = c("a", "b"), common.legend = TRUE
 )
+
+ggsave("supp_mlm_full_coef_plot.png",
+  ggarrange(
+  mlm_coef_plot(meta_mlm_full_r, people_levels_full, title = "Human Attributes"),
+  mlm_coef_plot(meta_mlm_full_r, animal_levels_full, title = "Animal Attributes"),
+  labels = c("a", "b"), common.legend = TRUE
+),
+         width = 12, height = 10, dpi = 300)
+
 ```
 
 ## 10c. Full Network - By Village
@@ -565,6 +575,14 @@ ggarrange(
   mlm_coef_plot(meta_mlm_hr_r, animal_levels_hr, title = "Animal Attributes"),
   labels = c("a", "b"), common.legend = TRUE
 )
+
+ggsave("supp_mlm_hr_coef_plot.png", 
+       ggarrange(
+  mlm_coef_plot(meta_mlm_hr_r, people_levels_hr, title = "Human Attributes"),
+  mlm_coef_plot(meta_mlm_hr_r, animal_levels_hr, title = "Animal Attributes"),
+  labels = c("a", "b"), common.legend = TRUE
+),
+       width = 12, height = 10, dpi = 300)
 ```
 
 ## 10e. High-Risk Network - By Village
@@ -656,6 +674,96 @@ mlm_hr_summary |>
   )
 ```
 
+# SAVING EXCEL SHEETS
+
+````{r}
+
+# xlsx_path <- "/Users/levkolinski/Desktop/human_animal_networks/ergm_coefficients_all_networks.xlsx"
+# 
+# 
+# # village-level: all fixed effects ----
+# fmt_mlm_village <- function(d, net) {
+#   d |>
+#     mutate(term = fct_inorder(term)) |>
+#     arrange(term, Village) |>
+#     transmute(network  = net,
+#               village  = Village,
+#               term     = as.character(term),
+#               estimate,
+#               se       = std.error,
+#               z        = statistic,
+#               p        = p.value,
+#               lo       = conf.low,
+#               hi       = conf.high,
+#               OR       = exp(estimate),
+#               OR_lo    = exp(conf.low),
+#               OR_hi    = exp(conf.high))|> 
+#     mutate(across(where(is.character), ~ str_replace_all(.x, "Ampandrana", "A")),
+#          across(where(is.character), ~ str_replace_all(.x, "Mandena", "M")),
+#          across(where(is.character), ~ str_replace_all(.x, "Sarahandrano", "S")))
+# } 
+# 
+# # pooled: FE meta-analysis across villages, same as the ERGM sheets ----
+# pool_mlm_all <- function(d, net) {
+#   d |>
+#     filter(is.finite(estimate), is.finite(std.error)) |>
+#     mutate(term = fct_inorder(term)) |>
+#     group_by(term) |>
+#     group_modify(~ {
+#       f <- rma(yi = .x$estimate, sei = .x$std.error, method = "FE")
+#       tibble(n_villages = nrow(.x),
+#              villages   = paste(.x$Village, collapse = "; "),
+#              estimate   = as.numeric(f$beta), se = f$se,
+#              lo = f$ci.lb, hi = f$ci.ub, p = f$pval,
+#              I2 = if (nrow(.x) > 1) f$I2 else NA_real_)
+#     }) |>
+#     ungroup() |>
+#     mutate(network = net, .before = 1,
+#            term  = as.character(term),
+#            OR    = exp(estimate), OR_lo = exp(lo), OR_hi = exp(hi)) |> 
+#       mutate(across(where(is.character), ~ str_replace_all(.x, "Ampandrana", "A")),
+#          across(where(is.character), ~ str_replace_all(.x, "Mandena", "M")),
+#          across(where(is.character), ~ str_replace_all(.x, "Sarahandrano", "S")))
+# }
+# 
+# mlm_sheets <- list(
+#   mlm_full_pooled  = pool_mlm_all(mlm_full_summary, "full"),
+#   mlm_full_village = fmt_mlm_village(mlm_full_summary, "full"),
+#   mlm_hr_pooled    = pool_mlm_all(mlm_hr_summary, "hr"),
+#   mlm_hr_village   = fmt_mlm_village(mlm_hr_summary, "hr")
+# )
+# 
+# mlm_notes <- c(
+#   "MLM sheets: supplementary multilevel logistic regressions (glmmTMB, binomial) fit separately in each village.",
+#   "MLM outcome: reported contact for each person x animal-type dyad (12 animal types); random intercept for participant.",
+#   "MLM sample matches the ERGM sample (participants with complete covariates).",
+#   "MLM fixed effects mirror the ERGM terms; reference categories are domesticated (full) and domesticated_1 (high-risk).",
+#   "MLM estimates are log-odds conditional on the participant random intercept; ERGM estimates are conditional on network structure, so magnitudes are not directly comparable.",
+#   "MLM village-level CIs are Wald 95% CIs from broom.mixed::tidy()."
+# )
+# 
+# # write into the existing workbook ----
+# wb <- loadWorkbook(xlsx_path)
+# 
+# for (nm in names(mlm_sheets)) {
+#   if (nm %in% names(wb)) removeWorksheet(wb, nm)   # safe to re-run
+#   addWorksheet(wb, nm)
+#   writeData(wb, nm, mlm_sheets[[nm]])
+#   setColWidths(wb, nm, cols = seq_len(ncol(mlm_sheets[[nm]])), widths = "auto")
+# }
+# 
+# # append MLM notes (without duplicating on re-run)
+# old_notes <- readWorkbook(wb, "notes")$note
+# new_notes <- tibble(note = c(old_notes, setdiff(mlm_notes, old_notes)))
+# removeWorksheet(wb, "notes")
+# addWorksheet(wb, "notes")
+# writeData(wb, "notes", new_notes)
+# 
+# saveWorkbook(wb, xlsx_path, overwrite = TRUE)
+
+````
+
+
 ---
 # Looking closer at vanilla growers
 ```{r}
@@ -671,7 +779,7 @@ vanilla_comparison <- merged_df |>
                                 labels = c("Did not grow", "Grew vanilla")))
 
 # --- Continuous variables: t-tests ---
-continuous_vars <- c("age", "landsize_in_daba", "household_size",
+continuous_vars <- c("age", "landsize_in_daba",
                      "commercial_goods", "house_sol", "school_level_numbered")
 
 ttest_results <- lapply(continuous_vars, function(v) {
