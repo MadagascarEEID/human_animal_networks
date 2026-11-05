@@ -546,6 +546,7 @@ summary_df_filtered <- summary_df %>% filter(Variable !="Edges", Variable !="Zeb
  
  summary_df_filtered2 <- summary_df_filtered
 summary_df_filtered2$Significance <- summary_df_filtered2$`Pr(>|z|)`
+
 summary_df_filtered2$Significance[summary_df_filtered2$`Pr(>|z|)`<0.05] <- "Significant"
 summary_df_filtered2$Significance[summary_df_filtered2$`Pr(>|z|)`>=0.1] <- "Not Significant"
 summary_df_filtered2$Significance[summary_df_filtered2$`Pr(>|z|)`<0.1&summary_df_filtered2$`Pr(>|z|)`>=0.05] <- "Marginally Significant"
@@ -1019,89 +1020,42 @@ cat("animal_names in rownames(adj)?", all(animal_names %in% rownames(adj)), "\n"
 
 ```{r Attributes Descriptive Stats}
 
+nets <- list(mand = net_mand, sara = net_sara, anda = net_anda)   # create AFTER setting "type"
 
-nets <- list(mand = net_mand, sara = net_sara, anda = net_anda)
-
-get_all_attrs <- function(net) {
-  e_ids <- valid.eids(net)
-  list(
-    vertex = sapply(list.vertex.attributes(net), function(a)
-               get.vertex.attribute(net, a), simplify = FALSE),
-    edge   = sapply(list.edge.attributes(net), function(a)
-               get.edge.attribute(net, a, unlist = FALSE)[e_ids], simplify = FALSE),
-    network = sapply(list.network.attributes(net), function(a)
-               get.network.attribute(net, a), simplify = FALSE)
+# One row per person; every column comes from the same vertex, in the same order
+df <- do.call(rbind, lapply(names(nets), function(nm) {
+  net <- nets[[nm]]
+  pp  <- which(get.vertex.attribute(net, "type") == "People")   # people only
+  data.frame(
+    network = nm,
+    land    = get.vertex.attribute(net, "land")[pp],
+    hsol    = get.vertex.attribute(net, "hsol")[pp],
+    cgsol   = get.vertex.attribute(net, "cgsol")[pp],
+    vanilla = get.vertex.attribute(net, "vanilla")[pp],
+    animals = sna::degree(net, gmode = "graph")[pp]
   )
+}))
+
+table(df$network)   # check: number of people per network
+
+# Continuous attributes: top vs bottom quintile
+for (v in c("land", "hsol", "cgsol")) {
+  d <- df[!is.na(df[[v]]) & !is.na(df$animals), ]
+  q <- quantile(d[[v]], c(0.2, 0.8))
+  top    <- d$animals[d[[v]] >= q[2]]
+  bottom <- d$animals[d[[v]] <= q[1]]
+  cat("\n====", v, "====\n")
+  print(t.test(top, bottom))
+  cat("% more:", round(100 * (mean(top) / mean(bottom) - 1), 1), "\n")
 }
 
-all_attrs <- lapply(nets, get_all_attrs)
-
-q <- quantile(land, c(0.2, 0.8))
-
-land    <- c(all_attrs$mand$vertex$land, all_attrs$sara$vertex$land, all_attrs$anda$vertex$land)
-animals <- c(sna::degree(net_mand, gmode = "graph"),
-             sna::degree(net_sara, gmode = "graph"),
-             sna::degree(net_anda, gmode = "graph"))
-
-ok      <- !is.na(land) & !is.na(animals)
-land    <- land[ok]
-animals <- animals[ok]
-
-bottom_animals <- animals[land <= q[1]]
-top_animals    <- animals[land >= q[2]]
-
-t.test(top_animals, bottom_animals)
-100 * (mean(top_animals) / mean(bottom_animals) - 1)  
-
-
-
-hsol    <- c(all_attrs$mand$vertex$hsol, all_attrs$sara$vertex$hsol, all_attrs$anda$vertex$hsol)
-animals <- c(sna::degree(net_mand, gmode = "graph"),
-             sna::degree(net_sara, gmode = "graph"),
-             sna::degree(net_anda, gmode = "graph"))
-
-ok      <- !is.na(hsol) & !is.na(animals)
-hsol    <- hsol[ok]
-animals <- animals[ok]
-
-bottom_animals <- animals[hsol <= q[1]]
-top_animals    <- animals[hsol >= q[2]]
-
-t.test(top_animals, bottom_animals)
-100 * (mean(top_animals) / mean(bottom_animals) - 1)  
-
-
-
-cgsol    <- c(all_attrs$mand$vertex$cgsol, all_attrs$sara$vertex$cgsol, all_attrs$anda$vertex$cgsol)
-animals <- c(sna::degree(net_mand, gmode = "graph"),
-             sna::degree(net_sara, gmode = "graph"),
-             sna::degree(net_anda, gmode = "graph"))
-
-ok      <- !is.na(cgsol) & !is.na(animals)
-cgsol    <- cgsol[ok]
-animals <- animals[ok]
-
-bottom_animals <- animals[cgsol <= q[1]]
-top_animals    <- animals[cgsol >= q[2]]
-
-t.test(top_animals, bottom_animals)
-100 * (mean(top_animals) / mean(bottom_animals) - 1)  
-
-
-vanilla    <- c(all_attrs$mand$vertex$vanilla, all_attrs$sara$vertex$vanilla, all_attrs$anda$vertex$vanilla)
-animals <- c(sna::degree(net_mand, gmode = "graph"),
-             sna::degree(net_sara, gmode = "graph"),
-             sna::degree(net_anda, gmode = "graph"))
-
-ok      <- !is.na(vanilla) & !is.na(animals)
-vanilla    <- vanilla[ok]
-animals <- animals[ok]
-
-bottom_animals <- animals[vanilla == "No"]
-top_animals    <- animals[vanilla == "Yes"]
-
-t.test(top_animals, bottom_animals)
-100 * (mean(top_animals) / mean(bottom_animals) - 1) 
+# Vanilla: Yes vs No
+d <- df[!is.na(df$vanilla) & !is.na(df$animals), ]
+yes <- d$animals[d$vanilla == "Yes"]
+no  <- d$animals[d$vanilla == "No"]
+cat("\n==== vanilla ====\n")
+print(t.test(yes, no))
+cat("% more:", round(100 * (mean(yes) / mean(no) - 1), 1), "\n")
 
 ```
 
