@@ -1046,34 +1046,61 @@ avg_interactions(flat_hr_ergm,   "High-risk network")
 ## 7d. SES Predictor Comparisons (t-tests)
 
 ```{r ses-ttests}
-ses_ttest <- function(edge_df, ses_var, binary = FALSE) {
-  df <- edge_df |>
+# one row per person: total edges + wealth value
+person_ses <- function(edge_df, ses_var) {
+  edge_df |>
     filter(!is.na(edge), !is.na(.data[[ses_var]])) |>
     group_by(from) |>
     summarise(total_edges = sum(edge == 1),
               ses = first(.data[[ses_var]]), .groups = "drop")
+}
 
-  if (binary) {
-    t.test(total_edges ~ ses, data = df)
-  } else {
-    df <- df |>
-      mutate(rank = percent_rank(ses),
-             quintile = case_when(rank <= 0.20 ~ "bottom_20",
-                                  rank >= 0.80 ~ "top_20",
-                                  TRUE         ~ NA_character_)) |>
-      filter(!is.na(quintile))
-    t.test(total_edges ~ quintile, data = df)
-  }
+ses_ttest <- function(edge_df, ses_var, binary = FALSE) {
+  df <- person_ses(edge_df, ses_var)
+
+  if (binary) return(t.test(total_edges ~ ses, data = df))
+
+  q <- quantile(df$ses, c(0.20, 0.80))
+  df |>
+    mutate(quintile = case_when(ses <= q[1] ~ "bottom_20",
+                                ses >= q[2] ~ "top_20",
+                                TRUE        ~ NA_character_)) |>
+    filter(!is.na(quintile)) |>
+    t.test(total_edges ~ quintile, data = _)
+}
+
+# group sizes (ties at a cutoff can push a group above 20%)
+quintile_sizes <- function(edge_df, ses_var) {
+  df <- person_ses(edge_df, ses_var)
+  q  <- quantile(df$ses, c(0.20, 0.80))
+  df |>
+    mutate(group = case_when(ses <= q[1] ~ "bottom_20",
+                             ses >= q[2] ~ "top_20",
+                             TRUE        ~ "middle")) |>
+    count(group) |>
+    mutate(wealth = ses_var, pct = round(100 * n / sum(n), 1), .before = 1)
+}
+
+# tidy summary: group means, % difference (top vs. bottom; growers vs. not), t, p
+ttest_row <- function(edge_df, ses_var, binary = FALSE) {
+  tt <- ses_ttest(edge_df, ses_var, binary)
+  tibble(wealth = ses_var,
+         group1 = names(tt$estimate)[1], mean1 = tt$estimate[[1]],
+         group2 = names(tt$estimate)[2], mean2 = tt$estimate[[2]],
+         pct_diff = 100 * (tt$estimate[[2]] / tt$estimate[[1]] - 1),
+         t = unname(tt$statistic), df = unname(tt$parameter), p = tt$p.value)
 }
 
 for (nw in c("full", "hr")) {
   ed <- if (nw == "full") flat_full_ergm else flat_hr_ergm
   cat("\n---", if (nw == "full") "Full" else "High-Risk", "Network ---\n")
-  cat("Land size:\n");        print(ses_ttest(ed, "land_size"))
-  cat("Commercial goods:\n"); print(ses_ttest(ed, "commercial_goods"))
-  cat("House materials:\n");  print(ses_ttest(ed, "house_sol"))
-  cat("Vanilla:\n");          print(ses_ttest(ed, "grew_vanilla",
-                                              binary = TRUE))
-}
 
+  print(map_dfr(c("land_size", "commercial_goods", "house_sol"),
+                \(v) quintile_sizes(ed, v)))
+
+  print(bind_rows(ttest_row(ed, "land_size"),
+                  ttest_row(ed, "commercial_goods"),
+                  ttest_row(ed, "house_sol"),
+                  ttest_row(ed, "grew_vanilla", binary = TRUE)))
+}
 ```
