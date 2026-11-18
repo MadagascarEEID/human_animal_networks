@@ -100,3 +100,4 @@ self_reported_networks/Images/network_figures_take_2.R
 self_reported_networks/Images/pooled_coef_plots_combined.R
 self_reported_networks/animal_interaction_counts.csv
 self_reported_networks/table_animal_interaction_counts.tex
+self_reported_networks/Results/ergm_*_village_?.RData
