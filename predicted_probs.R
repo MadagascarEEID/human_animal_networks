@@ -79,16 +79,16 @@ cat_labels <- c(all            = "All animals (average)",
                 Zebu           = "Cattle (zebu)",
                 not_cattle     = "Non-cattle animals",
                 domesticated   = "Domesticated",
-                domesticated_1 = "Domesticated 1 (poultry, pigs, cattle)",
-                domesticated_2 = "Domesticated 2 (dogs, goats/sheep, cats)",
+                domesticated_1 = "Higher economic importance (poultry, pigs, cattle)",
+                domesticated_2 = "Lower economic importance (dogs, goats/sheep, cats)",
                 rodent         = "Rodents",
                 wild           = "Wild")
 
 cat_colors <- c("Cattle (zebu)"                            = "#7b3fb5",  # purple
                 "Non-cattle animals"                       = "#009e9e",  # teal
                 "Domesticated"                             = "#2a78d6",
-                "Domesticated 1 (poultry, pigs, cattle)"   = "#2a78d6",
-                "Domesticated 2 (dogs, goats/sheep, cats)" = "#eb6834",
+                "Higher economic importance (poultry, pigs, cattle)"   = "#2a78d6",
+                "Lower economic importance (dogs, goats/sheep, cats)" = "#eb6834",
                 "Rodents"                                  = "#1baf7a",
                 "Wild"                                     = "#eda100",
                 "All animals (average)"                    = "#444444")
@@ -244,8 +244,8 @@ contrasts_pooled <- contrasts_by_village |>
 
 contrasts_pooled |> print(n = Inf)
 
-write.csv(contrasts_pooled, "predprob_contrasts_pooled_wland.csv",
-          row.names = FALSE)
+# write.csv(contrasts_pooled, "predprob_contrasts_pooled_wland.csv",
+#           row.names = FALSE)
 
 # change in expected number of animal partners per person
 # (= n_animals x mean change across all pairs; n_animals differs by network/village)

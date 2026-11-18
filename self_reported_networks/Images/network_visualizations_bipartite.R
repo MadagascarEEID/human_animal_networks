@@ -153,14 +153,14 @@ mtext("Full Self-Reported Networks",
       outer = TRUE, side = 3, font = 2, cex = 1.3, line = 0.8)
 dev.off()
 
-png("networks_high_risk.png", width = 1470, height = 800, res = 300)
+png("networks_high_risk.png", width = 7.5, height = 3.2, units = "in", res = 300)
 layout(matrix(1:4, nrow = 1), widths = c(3, 3, 3, 2.2))
 par(oma = c(0, 0, 3, 0))
 draw_web(bg_hr_amp, "Village A", hr_cat_col)
 draw_web(bg_hr_man, "Village M",                  hr_cat_col)
 draw_web(bg_hr_sar, "Village S",             hr_cat_col)
 draw_legend(c(OI_orange, OI_skyblue, OI_red, OI_green),
-            c("Dom. (common)", "Dom. (other)", "Rodent", "Wild"))
+            c("Dom. (high import.)", "Dom. (low import.)", "Rodent", "Wild"))
 mtext("High-Risk Self-Reported Networks",
       outer = TRUE, side = 3, font = 2, cex = 1.3, line = 0.8)
 dev.off()
